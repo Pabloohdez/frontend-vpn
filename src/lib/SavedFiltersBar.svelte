@@ -1,6 +1,6 @@
 <script lang="ts" generics="T extends Record<string, unknown>">
 	import { onMount } from 'svelte';
-	import { toast } from './toast';
+	import { toast } from './toast.svelte';
 	import {
 		deleteSavedFilter,
 		listSavedFilters,

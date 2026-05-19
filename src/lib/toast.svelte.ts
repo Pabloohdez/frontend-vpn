@@ -2,7 +2,7 @@
  * Toast store ligero basado en Svelte 5 runes.
  *
  * Uso:
- *   import { toast } from '$lib/toast';
+ *   import { toast } from '$lib/toast.svelte';
  *   toast.success('Listo');
  *   toast.error('Algo falló');
  *   toast.info('FYI');
