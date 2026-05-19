@@ -31,8 +31,10 @@
 		role="dialog"
 		aria-modal="true"
 		aria-label="Atajos de teclado"
+		tabindex="-1"
 		onclick={closeHelp}
 	>
+		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 		<div
 			class="shHelp"

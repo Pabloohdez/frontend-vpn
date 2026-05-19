@@ -207,6 +207,7 @@
 			role="dialog"
 			aria-modal="true"
 			aria-labelledby="dns-act-title"
+			tabindex="-1"
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.stopPropagation()}
 		>
@@ -613,13 +614,6 @@
 		border-radius: 10px;
 		border: 1px solid var(--border-subtle);
 		background: color-mix(in srgb, var(--border-subtle) 25%, var(--bg-card));
-	}
-
-	.dnsActRowIps__list {
-		margin: 8px 0 0;
-		padding-left: 1.1rem;
-		font-size: 12px;
-		line-height: 1.5;
 	}
 
 	.dnsActGrid {

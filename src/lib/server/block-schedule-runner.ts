@@ -53,8 +53,8 @@ export async function tickBlockSchedules(fetchFn: typeof fetch, force = false): 
 			const stillActive = activeByIp.get(rec.ip) === scheduleId;
 			if (stillActive) continue;
 			const res = await unblockInternetForIp(fetchFn, rec.ip);
-			if (res.ok) log.info('schedule.unblock_applied', { ip, scheduleId });
-			else log.warn('schedule.unblock_failed', { ip, scheduleId, message: res.message });
+			if (res.ok) log.info('schedule.unblock_applied', { ip: rec.ip, scheduleId });
+			else log.warn('schedule.unblock_failed', { ip: rec.ip, scheduleId, message: res.message });
 		}
 	} catch (e) {
 		log.error('schedule.tick_error', {
