@@ -31,3 +31,29 @@ jobs:
         env:
           SESSION_SECRET: ci_dummy_secret_minimum_32_chars_long
           ADMIN_PASSWORD: ci_admin
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: check-build-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm install
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      - name: Run E2E smoke tests
+        run: npm run test:e2e
+        env:
+          SESSION_SECRET: ci_dummy_secret_minimum_32_chars_long
+          ADMIN_PASSWORD: ci_admin
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 7

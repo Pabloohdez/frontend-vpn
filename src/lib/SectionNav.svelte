@@ -2,20 +2,20 @@
 	import { page } from '$app/state';
 	import ThemeToggle from '$lib/ThemeToggle.svelte';
 	import ModuleSwitcher from '$lib/ModuleSwitcher.svelte';
-	import { globalNavLinks, isActivePath } from '$lib/navigation';
-
-	type NavLink = { href: string; label: string };
+	import { globalNavLinks, isActivePath, type NavLinkDef } from '$lib/navigation';
+	import { t } from '$lib/i18n/locale.svelte';
+	import LanguageToggle from '$lib/LanguageToggle.svelte';
 
 	let {
 		links = [],
 		globalLinks = globalNavLinks
-	}: { links?: readonly NavLink[]; globalLinks?: readonly NavLink[] } = $props();
+	}: { links?: readonly NavLinkDef[]; globalLinks?: readonly NavLinkDef[] } = $props();
 
 	const pathname = $derived(page.url.pathname);
 </script>
 
 <nav class="nav sectionNav" aria-label="Navegación del panel">
-	<a class="brand" href="/" title="Volver al inicio">Panel VPN</a>
+	<a class="brand" href="/" title={t('nav.brand')}>{t('nav.brand')}</a>
 	<ModuleSwitcher />
 	<div class="links">
 		{#each links as link (link.href)}
@@ -24,7 +24,7 @@
 				class:active={isActivePath(pathname, link.href)}
 				aria-current={isActivePath(pathname, link.href) ? 'page' : undefined}
 			>
-				{link.label}
+				{t(link.labelKey)}
 			</a>
 		{/each}
 		{#if links.length > 0 && globalLinks.length > 0}
@@ -37,15 +37,15 @@
 				class:active={isActivePath(pathname, link.href)}
 				aria-current={isActivePath(pathname, link.href) ? 'page' : undefined}
 			>
-				{link.label}
+				{t(link.labelKey)}
 			</a>
 		{/each}
 		<a
 			href="/ajustes"
 			class="navIconBtn"
 			class:active={pathname === '/ajustes'}
-			title="Ajustes"
-			aria-label="Ajustes"
+			title={t('nav.settings')}
+			aria-label={t('nav.settings')}
 		>
 			<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
 				<circle cx="12" cy="12" r="3" />
@@ -54,6 +54,7 @@
 				/>
 			</svg>
 		</a>
+		<LanguageToggle />
 		<ThemeToggle />
 	</div>
 </nav>

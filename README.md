@@ -6,7 +6,9 @@ Panel web unificado para administrar **OpenVPN + Pi-hole + inventario de red**
 desde un único punto, con auditoría, control por dispositivo e informes
 exportables.
 
-[![CI](https://img.shields.io/badge/CI-GitHub_Actions-2088FF?logo=githubactions&logoColor=white)](./.github/workflows/ci.yml)
+[![CI](https://github.com/Pabloohdez/frontend-vpn/actions/workflows/ci.yml/badge.svg)](https://github.com/Pabloohdez/frontend-vpn/actions/workflows/ci.yml)
+[![Node](https://img.shields.io/badge/node-%3E%3D22-339933?logo=node.js&logoColor=white)](./package.json)
+[![Playwright](https://img.shields.io/badge/e2e-Playwright-2EAD33?logo=playwright&logoColor=white)](./tests/e2e)
 [![SvelteKit](https://img.shields.io/badge/SvelteKit-2-FF3E00?logo=svelte&logoColor=white)](https://kit.svelte.dev)
 [![Svelte](https://img.shields.io/badge/Svelte-5-FF3E00?logo=svelte&logoColor=white)](https://svelte.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)

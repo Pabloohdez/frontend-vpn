@@ -1,5 +1,6 @@
 import type { Handle } from '@sveltejs/kit';
 import { shouldUseSecureCookies } from '$lib/server/auth';
+import { tickBlockSchedules } from '$lib/server/block-schedule-runner';
 
 /**
  * Cabeceras de seguridad globales. La Content-Security-Policy se gestiona en
@@ -7,6 +8,9 @@ import { shouldUseSecureCookies } from '$lib/server/auth';
  * scripts inline (theme, hidratación) automáticamente.
  */
 export const handle: Handle = async ({ event, resolve }) => {
+	// Aplica horarios de bloqueo DNS (throttle interno ~60s).
+	void tickBlockSchedules(event.fetch);
+
 	const response = await resolve(event);
 
 	response.headers.set('X-Content-Type-Options', 'nosniff');

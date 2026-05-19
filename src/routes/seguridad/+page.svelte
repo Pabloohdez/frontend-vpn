@@ -32,6 +32,15 @@
 		detail: string;
 	};
 
+	type DnsAnomaly = {
+		client: string;
+		label: string | null;
+		current: number;
+		baseline_avg: number;
+		multiplier: number;
+		severity: 'warn' | 'critical';
+	};
+
 	type Payload = {
 		window_hours: number;
 		audit_days: number;
@@ -40,6 +49,7 @@
 		netmonitor_reachable?: boolean;
 		dns: DnsInsights | null;
 		audit: AuditInsights;
+		anomalies?: DnsAnomaly[];
 		alerts?: SecurityAlert[];
 	};
 
@@ -109,6 +119,41 @@
 						<li class="secAlert secAlert--{alert.severity}">
 							<strong class="secAlert__title">{alert.title}</strong>
 							<p class="secAlert__detail muted">{alert.detail}</p>
+						</li>
+					{/each}
+				</ul>
+			</section>
+		{/if}
+
+		{#if data.anomalies && data.anomalies.length > 0}
+			<section class="panel secAnoms" aria-label="Anomalías de actividad DNS">
+				<h2 class="panel__h2">Anomalías DNS</h2>
+				<p class="muted secAnoms__hint">
+					Dispositivos con actividad muy superior a su media de los últimos 7 días.
+				</p>
+				<ul class="secAnoms__list">
+					{#each data.anomalies as a (a.client)}
+						<li class="secAnom secAnom--{a.severity}">
+							<div class="secAnom__head">
+								<strong class="secAnom__name">{a.label ?? a.client}</strong>
+								<span class="secAnom__mult mono">
+									{Number.isFinite(a.multiplier) ? `×${a.multiplier}` : 'nuevo'}
+								</span>
+							</div>
+							<div class="secAnom__meta muted">
+								<span class="mono">{a.client}</span>
+								·
+								<span>
+									{a.current.toLocaleString('es-ES')} consultas
+									{#if a.baseline_avg > 0}
+										vs ≈ {a.baseline_avg.toLocaleString('es-ES')} habituales
+									{:else}
+										(sin historial reciente)
+									{/if}
+								</span>
+								·
+								<a href={`/dns?device_ip=${encodeURIComponent(a.client)}`}>Ver consultas</a>
+							</div>
 						</li>
 					{/each}
 				</ul>

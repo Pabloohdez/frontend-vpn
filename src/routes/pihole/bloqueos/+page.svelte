@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import BlockSchedulePanel from '$lib/BlockSchedulePanel.svelte';
 	import './page.css';
 
 	type Device = {
@@ -342,5 +343,7 @@
 				</nav>
 			{/if}
 		</section>
+
+		<BlockSchedulePanel {isAdmin} />
 	{/if}
 </main>

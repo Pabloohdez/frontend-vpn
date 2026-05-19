@@ -26,6 +26,7 @@ Thumbs.db
 **/data/activity.jsonl
 **/data/*.local.json
 **/data/internet-blocks.json
+**/data/block-schedules.json
 **/data/vpn-ipcn-history.json
 **/data/user-aliases.json
 **/data/revoked-hidden.json
@@ -59,3 +60,8 @@ vite.config.ts.timestamp-*
 # Coverage / test artifacts
 coverage/
 .nyc_output/
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/

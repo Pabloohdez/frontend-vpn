@@ -11,6 +11,7 @@
 		openvpnLinks,
 		piholeLinks
 	} from '$lib/navigation';
+	import { t } from '$lib/i18n/locale.svelte';
 	import '../app.css';
 
 	let { children } = $props();
@@ -33,7 +34,7 @@
 	/>
 </svelte:head>
 
-<a href="#contenido-principal" class="skip-link">Saltar al contenido principal</a>
+<a href="#contenido-principal" class="skip-link">{t('nav.skip')}</a>
 
 <SessionExpiryBanner />
 <AuditorBanner />

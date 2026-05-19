@@ -11,6 +11,8 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"test": "vitest run",
 		"test:watch": "vitest",
+		"test:e2e": "playwright test",
+		"test:e2e:install": "playwright install --with-deps chromium",
 		"smoke:health": "node scripts/smoke-health.mjs",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
 	},
@@ -18,6 +20,7 @@
 		"pdfkit": "^0.17.1"
 	},
 	"devDependencies": {
+		"@playwright/test": "^1.49.0",
 		"@types/node": "^22.15.0",
 		"@types/pdfkit": "^0.13.9",
 		"@sveltejs/adapter-node": "^5.2.0",

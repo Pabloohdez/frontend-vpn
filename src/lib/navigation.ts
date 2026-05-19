@@ -1,7 +1,7 @@
 export type AppSection = 'hub' | 'openvpn' | 'pihole' | 'settings' | 'audit' | 'other';
 
 const OPENVPN_PATHS = ['/openvpn', '/status', '/users'];
-const PIHOLE_PATHS = ['/pihole', '/dns', '/seguridad', '/pihole/bloqueos'];
+const PIHOLE_PATHS = ['/pihole', '/dns', '/seguridad', '/pihole/bloqueos', '/dashboard'];
 const AUDIT_PATHS = ['/audit'];
 
 export function getAppSection(pathname: string): AppSection {
@@ -23,19 +23,24 @@ export function isActivePath(pathname: string, href: string): boolean {
 	return pathname.startsWith(`${href}/`);
 }
 
-export const openvpnLinks = [
-	{ href: '/openvpn', label: 'Dashboard' },
-	{ href: '/status', label: 'Estado' },
-	{ href: '/users', label: 'Usuarios' }
+import type { MessageKey } from '$lib/i18n/messages';
+
+export type NavLinkDef = { href: string; labelKey: MessageKey };
+
+export const openvpnLinks: readonly NavLinkDef[] = [
+	{ href: '/openvpn', labelKey: 'nav.openvpn.dashboard' },
+	{ href: '/status', labelKey: 'nav.openvpn.status' },
+	{ href: '/users', labelKey: 'nav.openvpn.users' }
 ] as const;
 
-export const piholeLinks = [
-	{ href: '/pihole', label: 'Resumen' },
-	{ href: '/dns', label: 'DNS' },
-	{ href: '/pihole/listas', label: 'Listas' },
-	{ href: '/pihole/bloqueos', label: 'Dispositivos' },
-	{ href: '/seguridad', label: 'Seguridad' }
+export const piholeLinks: readonly NavLinkDef[] = [
+	{ href: '/pihole', labelKey: 'nav.pihole.summary' },
+	{ href: '/dashboard', labelKey: 'nav.pihole.dashboard' },
+	{ href: '/dns', labelKey: 'nav.pihole.dns' },
+	{ href: '/pihole/listas', labelKey: 'nav.pihole.lists' },
+	{ href: '/pihole/bloqueos', labelKey: 'nav.pihole.devices' },
+	{ href: '/seguridad', labelKey: 'nav.pihole.security' }
 ] as const;
 
 /** Visible en todas las secciones (OpenVPN, Pi-hole, auditoría, ajustes). */
-export const globalNavLinks = [{ href: '/audit', label: 'Auditoría' }] as const;
+export const globalNavLinks: readonly NavLinkDef[] = [{ href: '/audit', labelKey: 'nav.audit' }] as const;

@@ -105,7 +105,105 @@ export type SecurityAlertInput = {
 	netmonitor_configured?: boolean;
 	netmonitor_reachable?: boolean;
 	failed_login_threshold?: number;
+	anomalies?: DnsAnomaly[];
 };
+
+export type DnsAnomaly = {
+	client: string;
+	label: string | null;
+	current: number;
+	baseline_avg: number;
+	multiplier: number;
+	severity: 'warn' | 'critical';
+};
+
+export type AnomalyInput = {
+	current_rows: PiholeQueryTuple[];
+	baseline_rows: PiholeQueryTuple[];
+	current_window_hours: number;
+	baseline_window_hours: number;
+	hostnameToIpv4: Record<string, string>;
+	netmonitorByIp?: NetmonitorIpMap;
+	realLanByVpnIp?: Record<string, string>;
+	min_current?: number; // mínimo de consultas hoy para considerar (filtra ruido)
+	threshold?: number; // múltiplo sobre baseline para considerar anomalía (default 3)
+};
+
+/**
+ * Compara las consultas del periodo actual vs el promedio horario del periodo
+ * baseline para detectar dispositivos con actividad inusualmente alta.
+ *
+ * Si el dispositivo no aparece en baseline, se incluye solo si supera el
+ * mínimo `min_current` (default 500).
+ */
+export function detectDnsAnomalies(input: AnomalyInput): DnsAnomaly[] {
+	const minCurrent = input.min_current ?? 250;
+	const threshold = input.threshold ?? 3;
+	const realLanByVpnIp = input.realLanByVpnIp ?? {};
+	const netmonitorByIp = input.netmonitorByIp ?? {};
+
+	const currentCount = new Map<string, number>();
+	for (const row of input.current_rows) {
+		const c = String(row[3] ?? '').trim();
+		if (!c) continue;
+		currentCount.set(c, (currentCount.get(c) ?? 0) + 1);
+	}
+	const baselineCount = new Map<string, number>();
+	for (const row of input.baseline_rows) {
+		const c = String(row[3] ?? '').trim();
+		if (!c) continue;
+		baselineCount.set(c, (baselineCount.get(c) ?? 0) + 1);
+	}
+
+	const currentH = Math.max(1, input.current_window_hours);
+	const baselineH = Math.max(1, input.baseline_window_hours);
+
+	const anomalies: DnsAnomaly[] = [];
+	for (const [client, count] of currentCount) {
+		const currentPerH = count / currentH;
+		const basePerH = (baselineCount.get(client) ?? 0) / baselineH;
+		const baselineEquivalent = basePerH * currentH; // qué esperaríamos en la ventana actual
+
+		let multiplier = 0;
+		let isAnomaly = false;
+		if (basePerH > 0) {
+			multiplier = currentPerH / basePerH;
+			if (multiplier >= threshold && count >= 50) isAnomaly = true;
+		} else if (count >= minCurrent) {
+			multiplier = Infinity;
+			isAnomaly = true;
+		}
+		if (!isAnomaly) continue;
+
+		const enriched = enrichClientWithDevice(
+			client,
+			input.hostnameToIpv4,
+			realLanByVpnIp,
+			netmonitorByIp
+		);
+		anomalies.push({
+			client,
+			label: enriched.device_label ?? null,
+			current: count,
+			baseline_avg: Math.round(baselineEquivalent),
+			multiplier: Number.isFinite(multiplier)
+				? Math.round(multiplier * 10) / 10
+				: Number.POSITIVE_INFINITY,
+			severity:
+				multiplier >= threshold * 3 || (basePerH === 0 && count >= minCurrent * 2)
+					? 'critical'
+					: 'warn'
+		});
+	}
+
+	return anomalies
+		.sort((a, b) => {
+			const ma = Number.isFinite(a.multiplier) ? a.multiplier : 1e9;
+			const mb = Number.isFinite(b.multiplier) ? b.multiplier : 1e9;
+			return mb - ma;
+		})
+		.slice(0, 12);
+}
 
 /** Umbrales configurables vía env (ver .env.example). */
 export function buildSecurityAlerts(input: SecurityAlertInput): SecurityAlert[] {
@@ -141,6 +239,25 @@ export function buildSecurityAlerts(input: SecurityAlertInput): SecurityAlert[] 
 			title: 'Netmonitor no alcanzable',
 			detail:
 				'NETMONITOR_BASE_URL está configurado pero la API no respondió. Los dispositivos en DNS/Seguridad pueden mostrarse sin nombre.'
+		});
+	}
+
+	if (input.anomalies && input.anomalies.length > 0) {
+		const top = input.anomalies.slice(0, 3);
+		const severity: 'warn' | 'critical' = top.some((a) => a.severity === 'critical')
+			? 'critical'
+			: 'warn';
+		alerts.push({
+			id: 'dns_anomaly',
+			severity,
+			title: `Actividad DNS inusual en ${input.anomalies.length} dispositivo(s)`,
+			detail: top
+				.map((a) => {
+					const who = a.label ?? a.client;
+					const mult = Number.isFinite(a.multiplier) ? `×${a.multiplier}` : 'nuevo';
+					return `${who}: ${a.current.toLocaleString('es-ES')} consultas (${mult} sobre su media)`;
+				})
+				.join(' · ')
 		});
 	}
 

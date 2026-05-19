@@ -7,18 +7,11 @@ import {
 	fetchPiholeQueryLog
 } from '$lib/server/pihole-query-log';
 import { fetchNetmonitorIpMap } from '$lib/server/netmonitor';
-import {
-	aggregateAuditInsights,
-	aggregateDnsInsights,
-	buildSecurityAlerts,
-	detectDnsAnomalies
-} from '$lib/server/security-insights';
+import { aggregateDnsInsights } from '$lib/server/security-insights';
+import { bucketizeQueries, type DnsBucketGranularity } from '$lib/server/dns-timeseries';
 import { readPrunedIpCnHistory, normalizeVpnVirtualIpKey } from '$lib/server/vpn-ipcn-history';
 
 export const prerender = false;
-
-const DEFAULT_WINDOW_H = 24;
-const AUDIT_DAYS = 7;
 
 export const GET: RequestHandler = async ({ request, fetch, url }) => {
 	if (!isAuditorOrAdminFromRequestCookie(request.headers.get('cookie'))) {
@@ -33,23 +26,22 @@ export const GET: RequestHandler = async ({ request, fetch, url }) => {
 		);
 	}
 
-	const wRaw = Number(url.searchParams.get('window_hours') ?? String(DEFAULT_WINDOW_H));
-	const windowHours = Number.isFinite(wRaw) ? Math.min(168, Math.max(1, Math.floor(wRaw))) : DEFAULT_WINDOW_H;
+	const rangeRaw = (url.searchParams.get('range') ?? '24h').toLowerCase();
+	let windowHours = 24;
+	let granularity: DnsBucketGranularity = 'hour';
+	if (rangeRaw === '7d') {
+		windowHours = 24 * 7;
+		granularity = 'day';
+	} else if (rangeRaw === '30d') {
+		windowHours = 24 * 30;
+		granularity = 'day';
+	}
 
 	const now = Math.floor(Date.now() / 1000);
 	const from = now - windowHours * 3600;
+
 	const { rows, piHoleReachable } = await fetchPiholeQueryLog(fetch, from, now);
 	const hostnameToIpv4 = piHoleReachable ? await fetchPiholeHostnameToIpv4Map(fetch) : {};
-
-	// Baseline: 7 días anteriores a la ventana actual.
-	const BASELINE_DAYS = 7;
-	const baselineFrom = from - BASELINE_DAYS * 24 * 3600;
-	const baselineUntil = from;
-	let baselineRows: typeof rows = [];
-	if (piHoleReachable) {
-		const r = await fetchPiholeQueryLog(fetch, baselineFrom, baselineUntil);
-		baselineRows = r.rows;
-	}
 
 	const history = readPrunedIpCnHistory();
 	const realLanByVpnIp: Record<string, string> = {};
@@ -58,49 +50,30 @@ export const GET: RequestHandler = async ({ request, fetch, url }) => {
 		if (v?.real_lan) realLanByVpnIp[k] = v.real_lan;
 	}
 
-	const {
-		map: netmonitorByIp,
-		reachable: netmonitor_reachable,
-		configured: netmonitor_configured
-	} = await fetchNetmonitorIpMap(fetch);
+	const { map: netmonitorByIp } = await fetchNetmonitorIpMap(fetch);
 
-	const audit = await aggregateAuditInsights(AUDIT_DAYS);
-	const dns = piHoleReachable
+	const insights = piHoleReachable
 		? aggregateDnsInsights(rows, hostnameToIpv4, { realLanByVpnIp, netmonitorByIp })
 		: null;
-
-	const anomalies = piHoleReachable
-		? detectDnsAnomalies({
-				current_rows: rows,
-				baseline_rows: baselineRows,
-				current_window_hours: windowHours,
-				baseline_window_hours: BASELINE_DAYS * 24,
-				hostnameToIpv4,
-				netmonitorByIp,
-				realLanByVpnIp
-			})
-		: [];
-
-	const alerts = buildSecurityAlerts({
-		audit,
-		audit_days: AUDIT_DAYS,
-		pi_hole_reachable: piHoleReachable,
-		netmonitor_configured,
-		netmonitor_reachable,
-		anomalies
-	});
+	const series = bucketizeQueries(rows, from, now, granularity);
 
 	return json(
 		{
+			range: rangeRaw,
 			window_hours: windowHours,
-			audit_days: AUDIT_DAYS,
+			granularity,
 			pi_hole_reachable: piHoleReachable,
-			netmonitor_configured,
-			netmonitor_reachable,
-			dns,
-			audit,
-			anomalies,
-			alerts
+			summary: insights
+				? {
+						total: insights.total,
+						blocked: insights.blocked,
+						blocked_ratio: insights.blocked_ratio,
+						block_estimate: insights.block_estimate
+					}
+				: { total: 0, blocked: 0, blocked_ratio: null, block_estimate: 'unknown' },
+			top_domains: insights?.top_domains.slice(0, 10) ?? [],
+			top_clients: insights?.top_clients.slice(0, 10) ?? [],
+			series
 		},
 		{ status: 200, headers: { 'cache-control': 'no-store' } }
 	);
