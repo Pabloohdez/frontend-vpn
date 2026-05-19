@@ -1,0 +1,168 @@
+.page-pihole-blocks .blockBanner {
+	margin-bottom: 0;
+}
+
+.page-pihole-blocks .blockBanner p {
+	margin: 0;
+	font-size: 13px;
+	line-height: 1.45;
+}
+
+.page-pihole-blocks .blockStats {
+	margin-top: 0;
+}
+
+.page-pihole-blocks .blockStats__grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+	gap: 10px;
+}
+
+.page-pihole-blocks .blockToolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 12px 16px;
+	margin-bottom: 14px;
+}
+
+.page-pihole-blocks .blockToolbar__search {
+	flex: 1 1 14rem;
+	min-width: 12rem;
+	max-width: 28rem;
+}
+
+.page-pihole-blocks .blockToolbar__check {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+	color: var(--color-muted);
+	cursor: pointer;
+}
+
+.page-pihole-blocks .blockTableWrap {
+	margin-top: 4px;
+}
+
+.page-pihole-blocks .blockTable {
+	width: 100%;
+	font-size: 13px;
+}
+
+.page-pihole-blocks .blockTable__name {
+	font-weight: 600;
+}
+
+.page-pihole-blocks .blockTable__sub {
+	font-size: 11px;
+	margin-top: 2px;
+}
+
+.page-pihole-blocks .blockTable__actions {
+	text-align: right;
+	white-space: nowrap;
+	width: 8.5rem;
+}
+
+.page-pihole-blocks tr.rowBlocked {
+	background: color-mix(in srgb, #ef4444 6%, transparent);
+}
+
+.page-pihole-blocks .statusPill {
+	display: inline-block;
+	padding: 3px 8px;
+	border-radius: 999px;
+	font-size: 11px;
+	font-weight: 600;
+	border: 1px solid var(--border-default);
+	background: color-mix(in srgb, var(--border-subtle) 40%, var(--bg-card));
+}
+
+.page-pihole-blocks .statusPill--ok {
+	border-color: color-mix(in srgb, #22c55e 35%, var(--border-default));
+	color: color-mix(in srgb, #22c55e 85%, var(--color-text));
+}
+
+.page-pihole-blocks .statusPill--muted {
+	opacity: 0.85;
+}
+
+.page-pihole-blocks .statusPill--bad {
+	border-color: color-mix(in srgb, #ef4444 40%, var(--border-default));
+	color: color-mix(in srgb, #ef4444 90%, var(--color-text));
+}
+
+.page-pihole-blocks .statusPill--vpn {
+	border-color: color-mix(in srgb, var(--focus-ring) 45%, var(--border-default));
+}
+
+.page-pihole-blocks .blockPager {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px 16px;
+	margin-top: 14px;
+	padding-top: 12px;
+	border-top: 1px solid var(--border-subtle);
+}
+
+.page-pihole-blocks .blockPager__meta {
+	font-size: 12px;
+}
+
+.page-pihole-blocks .blockPager__size {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 13px;
+}
+
+.page-pihole-blocks .blockPager__select {
+	width: auto;
+	min-width: 4.5rem;
+	padding: 6px 10px;
+	font-size: 13px;
+}
+
+.page-pihole-blocks .blockPager__nav {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.page-pihole-blocks .blockPager__status {
+	font-size: 13px;
+	font-weight: 600;
+	min-width: 7rem;
+	text-align: center;
+}
+
+.page-pihole-blocks .btnCutNet {
+	color: #fff;
+	background: #dc2626;
+	border: 1px solid #f87171;
+	font-weight: 600;
+}
+
+.page-pihole-blocks .btnCutNet:hover:not(:disabled) {
+	background: #ef4444;
+	border-color: #fca5a5;
+	color: #fff;
+}
+
+.page-pihole-blocks .btnCutNet:disabled {
+	opacity: 0.55;
+}
+
+.page-pihole-blocks .btnRestoreNet {
+	color: var(--color-text);
+	background: color-mix(in srgb, var(--border-subtle) 35%, var(--bg-card));
+	border: 1px solid var(--border-default);
+	font-weight: 600;
+}
+
+.page-pihole-blocks .btnRestoreNet:hover:not(:disabled) {
+	background: color-mix(in srgb, var(--focus-ring) 12%, var(--bg-card));
+}

@@ -1,0 +1,61 @@
+node_modules
+
+# Output
+.output
+.vercel
+.netlify
+.wrangler
+/.svelte-kit
+/build
+dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env (secrets — never commit)
+.env
+.env.*
+!.env.example
+!.env.test
+
+# Datos sensibles: auditoría, IP↔CN, alias, listas locales, etc.
+# Persiste fuera del repo (volumen Docker, /var/lib/..., backup propio).
+/data/
+**/data/audit.jsonl
+**/data/activity.jsonl
+**/data/*.local.json
+**/data/internet-blocks.json
+**/data/vpn-ipcn-history.json
+**/data/user-aliases.json
+**/data/revoked-hidden.json
+*.local.*
+
+# Informes y exports descargados/generados localmente
+*.pdf
+*.csv
+*.xlsx
+
+# Backups
+*.bak
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+
+# Logs
+*.log
+logs/
+
+# Editor / IDE locales
+.idea/
+*.swp
+*.swo
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# Coverage / test artifacts
+coverage/
+.nyc_output/

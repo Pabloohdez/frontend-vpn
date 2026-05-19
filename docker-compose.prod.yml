@@ -1,0 +1,20 @@
+# Producción: imagen compilada (no Vite dev).
+# Uso: docker compose -f docker-compose.prod.yml up -d --build
+services:
+  fronted-vpn:
+    build: .
+    container_name: fronted-vpn
+    user: "1001:1002"
+    network_mode: host
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - HOST=0.0.0.0
+      - PORT=2346
+      # Acceso por http://IP:2346 en LAN — no marcar cookies Secure
+      - COOKIE_SECURE=false
+    volumes:
+      - ./data:/app/data
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped

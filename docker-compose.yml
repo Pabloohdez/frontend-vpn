@@ -1,0 +1,21 @@
+# Desarrollo: Vite con HMR. Para producción use docker-compose.prod.yml
+services:
+  fronted-vpn:
+    image: node:lts-alpine
+    container_name: fronted-vpn
+    user: "1001:1002"
+    working_dir: /app
+    volumes:
+      - ./:/app
+      - /etc/localtime:/etc/localtime:ro
+    # Red del host: el contenedor alcanza servicios LAN (Pi-hole, netmonitor, etc.)
+    # con sus IPs/hostnames internos definidos en `.env`. La red bridge por defecto
+    # no permite resolver direcciones privadas del host.
+    network_mode: host
+    env_file:
+      - .env
+    environment:
+      - HOME=/tmp
+      - NODE_ENV=development
+    command: sh -c "npm install --silent && npm run dev -- --host 0.0.0.0 --port 2346"
+    restart: unless-stopped

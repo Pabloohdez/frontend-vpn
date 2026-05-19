@@ -1,0 +1,74 @@
+.page-settings .panelHero__text .settingsBack {
+	display: block;
+	margin-bottom: 6px;
+	font-size: 13px;
+	color: var(--color-muted);
+	text-decoration: none;
+	width: fit-content;
+}
+
+.page-settings .panelHero__text .settingsBack:hover {
+	color: var(--color-text);
+	text-decoration: underline;
+}
+
+.page-settings .settingsNote {
+	font-size: 13px;
+	line-height: 1.5;
+	margin-bottom: 12px;
+}
+
+.page-settings .envList {
+	margin: 0;
+	padding-left: 1.2rem;
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	font-size: 14px;
+}
+
+.page-settings .envList ul {
+	margin: 6px 0 0;
+	padding-left: 1.2rem;
+	color: var(--color-muted);
+	font-size: 13px;
+}
+
+.page-settings .settingsQuick__grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+	gap: 12px;
+}
+
+.page-settings .settingsQuick__card {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 14px 16px;
+	border-radius: 12px;
+	border: 1px solid var(--border-default);
+	background: var(--bg-body);
+	text-decoration: none;
+	color: var(--color-text);
+	transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.page-settings .settingsQuick__card:hover {
+	transform: translateY(-1px);
+	border-color: color-mix(in srgb, var(--focus-ring) 40%, var(--border-default));
+}
+
+.page-settings .settingsQuick__card--audit {
+	border-color: color-mix(in srgb, #a78bfa 40%, var(--border-default));
+	background: color-mix(in srgb, #a78bfa 8%, var(--bg-body));
+}
+
+.page-settings .settingsQuick__label {
+	font-weight: 650;
+	font-size: 14px;
+}
+
+.page-settings .settingsQuick__hint {
+	font-size: 12px;
+	margin: 0;
+}

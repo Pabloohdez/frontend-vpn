@@ -1,0 +1,82 @@
+.page-pihole-hub .hubSub {
+	margin: 6px 0 0;
+	font-size: 13px;
+}
+
+.page-pihole-hub .hubHealth__grid {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 10px;
+}
+
+.page-pihole-hub .pill {
+	border: 1px solid var(--border-default);
+	border-radius: 12px;
+	padding: 10px 12px;
+	background: var(--bg-card);
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.page-pihole-hub .pill.ok {
+	border-color: color-mix(in srgb, #22c55e 38%, var(--border-default));
+	background: color-mix(in srgb, #22c55e 12%, var(--bg-card));
+}
+
+.page-pihole-hub .pill.bad {
+	border-color: color-mix(in srgb, #ef4444 40%, var(--border-default));
+	background: color-mix(in srgb, #ef4444 12%, var(--bg-card));
+}
+
+.page-pihole-hub .k {
+	color: var(--color-muted);
+	font-size: 12px;
+}
+
+.page-pihole-hub .v {
+	font-size: 14px;
+	font-weight: 650;
+}
+
+.page-pihole-hub .hubModules {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: 16px;
+	margin-top: 20px;
+}
+
+.page-pihole-hub .hubModuleCard {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 20px 18px;
+	border-radius: 16px;
+	border: 1px solid var(--border-default);
+	background: var(--bg-card);
+	text-decoration: none;
+	color: var(--color-text);
+	transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.page-pihole-hub .hubModuleCard:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.page-pihole-hub .hubModuleCard__label {
+	font-size: 1.1rem;
+	font-weight: 750;
+	letter-spacing: -0.02em;
+}
+
+.page-pihole-hub .hubModuleCard__hint {
+	font-size: 12px;
+	line-height: 1.45;
+}
+
+@media (max-width: 900px) {
+	.page-pihole-hub .hubHealth__grid {
+		grid-template-columns: 1fr 1fr;
+	}
+}

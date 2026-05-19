@@ -1,0 +1,189 @@
+import { createHmac, timingSafeEqual } from 'node:crypto';
+import { parse as parseCookie, serialize as serializeCookie } from 'cookie';
+import { env } from '$env/dynamic/private';
+import { verifyPbkdf2Token } from '$lib/server/password-verify';
+
+export const COOKIE_NAME = 'admin_session';
+
+/** Debe coincidir con maxAge de la cookie de sesión. */
+export const SESSION_MAX_MS = 60 * 60 * 12 * 1000;
+
+/** Longitud mínima recomendada para SESSION_SECRET (bytes UTF-8). */
+export const SESSION_SECRET_MIN_LENGTH = 32;
+
+/** Longitud máxima aceptada en login (mitiga cuerpos enormes). */
+export const MAX_LOGIN_PASSWORD_LENGTH = 512;
+
+export type AuthRole = 'admin' | 'auditor';
+
+function envTrim(name: keyof typeof env): string {
+	const v = env[name];
+	return typeof v === 'string' ? v.trim() : '';
+}
+
+function hmac(input: string) {
+	const secret = envTrim('SESSION_SECRET');
+	return createHmac('sha256', secret).update(input).digest('hex');
+}
+
+function sessionSecretOk() {
+	return envTrim('SESSION_SECRET').length >= SESSION_SECRET_MIN_LENGTH;
+}
+
+function hasAdminCredential() {
+	return Boolean(
+		(env.ADMIN_PASSWORD_PBKDF2 ?? '').trim() || (env.ADMIN_PASSWORD ?? '').trim()
+	);
+}
+
+function hasAuditorCredential() {
+	return Boolean(
+		(env.AUDITOR_PASSWORD_PBKDF2 ?? '').trim() || (env.AUDITOR_PASSWORD ?? '').trim()
+	);
+}
+
+export function isAuthConfigured() {
+	return Boolean(sessionSecretOk() && (hasAdminCredential() || hasAuditorCredential()));
+}
+
+/**
+ * Cookie `Secure` solo si está explícito o la URL es HTTPS real.
+ * No usamos `X-Forwarded-Proto` por defecto: en LAN con HTTP (192.168.x.x) un proxy
+ * que envía `https` haría que el navegador rechace la cookie y el login fallaría.
+ */
+export function shouldUseSecureCookies(request: Request): boolean {
+	const v = envTrim('COOKIE_SECURE');
+	if (v === 'true' || v === '1' || v === 'yes') return true;
+	if (v === 'false' || v === '0' || v === 'no') return false;
+
+	const trustProxy = envTrim('TRUST_PROXY').toLowerCase();
+	if (trustProxy === 'true' || trustProxy === '1') {
+		const xf = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim().toLowerCase();
+		if (xf === 'https') return true;
+	}
+
+	try {
+		return new URL(request.url).protocol === 'https:';
+	} catch {
+		return false;
+	}
+}
+
+export function buildSessionCookieValue(role: AuthRole): string {
+	const issuedAt = Date.now().toString();
+	const payload = `${issuedAt}.${role}`;
+	const sig = hmac(payload);
+	return `${issuedAt}.${role}.${sig}`;
+}
+
+export function sessionCookieOptions(request: Request) {
+	return {
+		httpOnly: true as const,
+		sameSite: 'lax' as const,
+		secure: shouldUseSecureCookies(request),
+		path: '/',
+		maxAge: Math.floor(SESSION_MAX_MS / 1000)
+	};
+}
+
+export function makeSessionCookie(role: AuthRole, request: Request) {
+	return serializeCookie(COOKIE_NAME, buildSessionCookieValue(role), sessionCookieOptions(request));
+}
+
+export function clearSessionCookie(request: Request) {
+	const secure = shouldUseSecureCookies(request);
+	return serializeCookie(COOKIE_NAME, '', {
+		httpOnly: true,
+		sameSite: 'lax',
+		secure,
+		path: '/',
+		maxAge: 0
+	});
+}
+
+export function isAdminFromRequestCookie(cookieHeader: string | null | undefined) {
+	return getRoleFromRequestCookie(cookieHeader) === 'admin';
+}
+
+function timingEq(a: string, b: string) {
+	try {
+		return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+	} catch {
+		return false;
+	}
+}
+
+export function verifyPasswordAndGetRole(password: string): AuthRole | null {
+	if (password.length > MAX_LOGIN_PASSWORD_LENGTH) return null;
+
+	const pbkdfAdmin = (env.ADMIN_PASSWORD_PBKDF2 ?? '').trim();
+	if (pbkdfAdmin) {
+		const r = verifyPbkdf2Token(password, pbkdfAdmin);
+		if (r === true) return 'admin';
+		return null;
+	}
+	const admin = envTrim('ADMIN_PASSWORD');
+	if (admin && timingEq(password, admin)) return 'admin';
+
+	const pbkdfAud = (env.AUDITOR_PASSWORD_PBKDF2 ?? '').trim();
+	if (pbkdfAud) {
+		const r = verifyPbkdf2Token(password, pbkdfAud);
+		if (r === true) return 'auditor';
+		return null;
+	}
+	const auditor = envTrim('AUDITOR_PASSWORD');
+	if (auditor && timingEq(password, auditor)) return 'auditor';
+	return null;
+}
+
+function roleFromSessionValue(raw: string | undefined | null): AuthRole | null {
+	if (!isAuthConfigured() || !raw) return null;
+
+	const [issuedAt, role, sig] = raw.split('.', 3);
+	if (!issuedAt || !role || !sig) return null;
+	if (role !== 'admin' && role !== 'auditor') return null;
+
+	const issuedMs = Number(issuedAt);
+	if (!Number.isFinite(issuedMs) || Date.now() - issuedMs > SESSION_MAX_MS) return null;
+
+	const payload = `${issuedAt}.${role}`;
+	const expected = hmac(payload);
+	try {
+		return timingSafeEqual(Buffer.from(sig), Buffer.from(expected)) ? (role as AuthRole) : null;
+	} catch {
+		return null;
+	}
+}
+
+export function getRoleFromRequestCookie(cookieHeader: string | null | undefined): AuthRole | null {
+	if (!cookieHeader) return null;
+	const cookies = parseCookie(cookieHeader);
+	return roleFromSessionValue(cookies[COOKIE_NAME]);
+}
+
+export function getRoleFromEventCookies(cookies: {
+	get: (name: string) => string | undefined;
+}): AuthRole | null {
+	return roleFromSessionValue(cookies.get(COOKIE_NAME));
+}
+
+export function isAuditorOrAdminFromRequestCookie(cookieHeader: string | null | undefined) {
+	const role = getRoleFromRequestCookie(cookieHeader);
+	return role === 'admin' || role === 'auditor';
+}
+
+/** Epoch ms en que caduca la sesión (solo si la cookie es válida). */
+export function getSessionExpiresAtMs(cookieHeader: string | null | undefined): number | null {
+	const role = getRoleFromRequestCookie(cookieHeader);
+	if (!role) return null;
+
+	const cookies = parseCookie(cookieHeader ?? '');
+	const v = cookies[COOKIE_NAME];
+	if (!v) return null;
+
+	const [issuedAt] = v.split('.', 3);
+	const t = Number(issuedAt);
+	if (!Number.isFinite(t)) return null;
+	return t + SESSION_MAX_MS;
+}
+

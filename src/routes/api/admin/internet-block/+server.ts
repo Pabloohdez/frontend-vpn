@@ -1,0 +1,76 @@
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { getRoleFromRequestCookie, isAdminFromRequestCookie } from '$lib/server/auth';
+import { writeAudit } from '$lib/server/audit';
+import { blockInternetForIp, unblockInternetForIp } from '$lib/server/pihole-internet-block';
+import { resolveInternetBlockIp } from '$lib/server/pihole-client-resolve';
+
+export const prerender = false;
+
+type Body = {
+	ip?: string;
+	/** Cliente tal como lo registró Pi-hole en la consulta DNS (nombre, IP, etc.). */
+	client?: string;
+	op?: 'block' | 'unblock';
+	label?: string;
+	cn?: string;
+};
+
+export const POST: RequestHandler = async ({ request, fetch, getClientAddress }) => {
+	if (!isAdminFromRequestCookie(request.headers.get('cookie'))) {
+		return json({ error: 'unauthorized' }, { status: 401 });
+	}
+
+	const body = (await request.json().catch(() => null)) as Body | null;
+	const op = body?.op === 'unblock' ? 'unblock' : body?.op === 'block' ? 'block' : null;
+	if (!op) {
+		return json({ error: 'bad_request', message: 'op (block|unblock) requerido' }, { status: 400 });
+	}
+
+	const role = getRoleFromRequestCookie(request.headers.get('cookie')) ?? 'admin';
+	const labelParts = [body?.label?.trim(), body?.cn?.trim() ? `CN ${body.cn.trim()}` : ''].filter(Boolean);
+	const label = labelParts.length ? labelParts.join(' · ') : null;
+	const clientRaw = String(body?.client ?? '').trim();
+
+	let ip = String(body?.ip ?? '').trim();
+	let resolveSource: string | undefined;
+	if (op === 'block' && !ip && clientRaw) {
+		const resolved = await resolveInternetBlockIp(fetch, { ip, clientRaw });
+		ip = resolved.ip ?? '';
+		resolveSource = resolved.source;
+		if (!ip) {
+			return json(
+				{ ok: false, ip: '', message: resolved.message ?? 'No se pudo resolver la IP del cliente' },
+				{ status: 400, headers: { 'cache-control': 'no-store' } }
+			);
+		}
+	}
+
+	if (!ip) {
+		return json({ error: 'bad_request', message: 'ip o client requerido' }, { status: 400 });
+	}
+
+	const result =
+		op === 'block'
+			? await blockInternetForIp(fetch, ip, { label, actor: role, clientRaw: clientRaw || null })
+			: await unblockInternetForIp(fetch, ip);
+
+	try {
+		await writeAudit({
+			ts: new Date().toISOString(),
+			actor: role,
+			action: op === 'block' ? 'internet_block' : 'internet_unblock',
+			target_cn: body?.cn?.trim() || null,
+			success: result.ok,
+			remote_ip: getClientAddress(),
+			details: { ip, message: result.message, label, client: clientRaw || null, resolve_source: resolveSource ?? null }
+		});
+	} catch {
+		/* best-effort */
+	}
+
+	return json(result, {
+		status: result.ok ? 200 : 502,
+		headers: { 'cache-control': 'no-store' }
+	});
+};

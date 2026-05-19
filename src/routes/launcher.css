@@ -1,0 +1,161 @@
+.launcher {
+	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
+	background: var(--bg-body);
+}
+
+.launcher__top {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 16px 20px;
+	border-bottom: 1px solid var(--nav-border);
+	background: var(--nav-bg);
+	backdrop-filter: blur(8px);
+}
+
+.launcher__brand {
+	font-weight: 750;
+	letter-spacing: -0.02em;
+	font-size: 15px;
+}
+
+.launcher__topActions {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.launcher__settings {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 40px;
+	height: 40px;
+	border-radius: 999px;
+	border: 1px solid var(--border-default);
+	background: var(--nav-link-bg);
+	color: var(--color-text);
+	text-decoration: none;
+	transition: filter 0.15s ease;
+}
+
+.launcher__settings:hover {
+	filter: brightness(0.97);
+}
+
+.launcher__settings:focus-visible {
+	outline: 2px solid var(--focus-ring);
+	outline-offset: 2px;
+}
+
+.launcher__body {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 32px 20px 48px;
+	text-align: center;
+}
+
+.launcher__title {
+	margin: 0 0 8px;
+	font-size: clamp(1.5rem, 3vw, 2rem);
+	font-weight: 750;
+	letter-spacing: -0.03em;
+}
+
+.launcher__sub {
+	margin: 0 0 36px;
+	max-width: 28rem;
+	font-size: 14px;
+}
+
+.launcher__cards {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 24px;
+	justify-content: center;
+	width: 100%;
+	max-width: 720px;
+}
+
+.launcher__card {
+	flex: 1 1 240px;
+	max-width: 320px;
+	min-height: 140px;
+	padding: 28px 32px;
+	border-radius: 999px;
+	border: 2px solid var(--border-default);
+	background: var(--bg-card);
+	text-decoration: none;
+	color: var(--color-text);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	box-shadow: 0 8px 28px rgba(0, 0, 0, 0.06);
+	transition:
+		transform 0.2s ease,
+		box-shadow 0.2s ease,
+		border-color 0.2s ease;
+}
+
+.launcher__card:hover {
+	transform: translateY(-3px);
+	box-shadow: 0 14px 36px rgba(0, 0, 0, 0.1);
+}
+
+.launcher__card:focus-visible {
+	outline: 2px solid var(--focus-ring);
+	outline-offset: 4px;
+}
+
+.launcher__card--vpn {
+	border-color: color-mix(in srgb, #3b82f6 45%, var(--border-default));
+	background: linear-gradient(
+		145deg,
+		color-mix(in srgb, #3b82f6 8%, var(--bg-card)),
+		var(--bg-card)
+	);
+}
+
+.launcher__card--dns {
+	border-color: color-mix(in srgb, #14b8a6 45%, var(--border-default));
+	background: linear-gradient(
+		145deg,
+		color-mix(in srgb, #14b8a6 8%, var(--bg-card)),
+		var(--bg-card)
+	);
+}
+
+.launcher__card--audit {
+	border-color: color-mix(in srgb, #a78bfa 45%, var(--border-default));
+	background: linear-gradient(
+		145deg,
+		color-mix(in srgb, #a78bfa 10%, var(--bg-card)),
+		var(--bg-card)
+	);
+	flex: 1 1 200px;
+	max-width: 280px;
+}
+
+.launcher__cardLabel {
+	font-size: 1.25rem;
+	font-weight: 800;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.launcher__cardHint {
+	font-size: 12px;
+	line-height: 1.4;
+	max-width: 16rem;
+}
+
+[data-theme='dark'] .launcher__card {
+	box-shadow: 0 10px 32px rgba(0, 0, 0, 0.4);
+}

@@ -1,0 +1,7 @@
+# Añadir al servicio netmonitor-web en /opt/netmonitor/docker-compose.yml:
+#
+#   environment:
+#     ...
+#     INTERNAL_API_KEY: ${INTERNAL_API_KEY:-cambia_por_clave_larga_aleatoria}
+#
+# Misma clave en fronted-vpn/.env como NETMONITOR_API_KEY

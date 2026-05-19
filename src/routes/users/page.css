@@ -1,0 +1,231 @@
+.page-users .errorCard {
+	border-color: var(--card-error-border);
+	background: var(--card-error-bg);
+	color: var(--color-text);
+}
+
+.page-users .warnCard {
+	border: 1px solid var(--card-warn-border);
+	background: var(--card-warn-bg);
+	color: var(--color-text);
+	margin-top: 24px;
+	margin-bottom: 24px;
+	box-shadow: 0 4px 14px rgba(245, 158, 11, 0.07);
+}
+
+[data-theme='dark'] .page-users .warnCard {
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.page-users .warnCard .muted {
+	color: color-mix(in srgb, var(--color-text) 82%, var(--color-muted));
+	margin-top: 8px;
+}
+
+.page-users .warnCard strong {
+	display: block;
+	font-size: 1rem;
+	margin-bottom: 6px;
+}
+
+.page-users .createForm {
+	display: grid;
+	grid-template-columns: 2fr 1fr auto;
+	gap: 10px;
+	align-items: center;
+	margin-bottom: 8px;
+}
+
+.page-users .filtersUsers {
+	display: grid;
+	grid-template-columns: 2fr 1fr 1fr;
+	gap: 10px;
+	margin: 10px 0 12px;
+}
+
+.page-users table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 13px;
+	table-layout: fixed;
+}
+
+.page-users th,
+.page-users td {
+	text-align: left;
+	padding: 10px 8px;
+	border-bottom: 1px solid var(--border-subtle);
+	white-space: normal;
+	word-break: break-word;
+	overflow-wrap: anywhere;
+	color: var(--color-text);
+}
+
+.page-users th {
+	color: var(--color-muted);
+	font-weight: 650;
+	font-size: 12px;
+}
+
+.page-users .rowActions {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+	align-items: center;
+}
+
+.page-users .btnTrash {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 34px;
+	height: 30px;
+	padding: 0;
+	border: 1px solid var(--border-default);
+	border-radius: 8px;
+	background: var(--bg-card);
+	color: var(--color-muted);
+	cursor: pointer;
+	transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.page-users .btnTrash:hover:not(:disabled) {
+	color: #b91c1c;
+	border-color: var(--card-error-border);
+	background: var(--card-error-bg);
+}
+
+.page-users .btnTrash:disabled {
+	opacity: 0.55;
+	cursor: not-allowed;
+}
+
+.page-users .srOnly {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+.page-users .helpHint {
+	font-size: 13px;
+	line-height: 1.45;
+	margin: 0 0 12px;
+	max-width: 52rem;
+	color: color-mix(in srgb, var(--color-text) 88%, var(--color-muted));
+}
+
+.page-users .mutedBlock {
+	display: block;
+	margin-top: 0.45rem;
+}
+
+.page-users .usersEmpty {
+	margin-top: 8px;
+	padding: 28px 22px;
+	text-align: center;
+	border-radius: 12px;
+	border: 1px dashed var(--border-default);
+	background: color-mix(in srgb, var(--border-subtle) 35%, var(--bg-card));
+}
+
+.page-users .usersEmpty__title {
+	margin: 0 0 10px;
+	font-size: 1.05rem;
+	font-weight: 650;
+	color: var(--color-text);
+}
+
+.page-users .usersEmpty__body {
+	margin: 0 auto;
+	max-width: 40rem;
+	line-height: 1.5;
+}
+
+.page-users .hiddenRevokedBar {
+	margin: 0 0 14px;
+	padding: 10px 12px;
+	background: color-mix(in srgb, var(--border-subtle) 38%, var(--bg-card));
+	border: 1px solid var(--border-default);
+	border-radius: 10px;
+}
+
+.page-users .linkLike {
+	font: inherit;
+	background: none;
+	border: none;
+	padding: 0;
+	cursor: pointer;
+	color: var(--focus-ring);
+	text-decoration: underline;
+	text-align: left;
+}
+
+.page-users .linkLike:hover {
+	filter: brightness(1.08);
+}
+
+[data-theme='dark'] .page-users .linkLike {
+	color: #93c5fd;
+}
+
+.page-users .hiddenRevokedList {
+	list-style: none;
+	margin: 10px 0 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.page-users .hiddenRevokedList li {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 10px;
+	font-size: 13px;
+}
+
+.page-users .tagWarn {
+	display: inline-block;
+	font-size: 12px;
+	font-weight: 650;
+	color: #92400e;
+	background: #fef3c7;
+	border: 1px solid #fde68a;
+	padding: 2px 8px;
+	border-radius: 999px;
+}
+
+[data-theme='dark'] .page-users .tagWarn {
+	color: #fcd34d;
+	background: rgba(245, 158, 11, 0.14);
+	border-color: rgba(245, 158, 11, 0.35);
+}
+
+.page-users .dim {
+	color: var(--color-muted);
+}
+
+.page-users .list ul {
+	margin: 6px 0 0;
+	padding-left: 18px;
+}
+
+.page-users .list li {
+	color: var(--color-text);
+}
+
+@media (max-width: 900px) {
+	.page-users .createForm {
+		grid-template-columns: 1fr;
+	}
+	.page-users .filtersUsers {
+		grid-template-columns: 1fr;
+	}
+}
