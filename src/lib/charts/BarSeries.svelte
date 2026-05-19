@@ -15,8 +15,8 @@
 	const chartW = $derived(width - padding.left - padding.right);
 	const barW = $derived(points.length > 0 ? chartW / points.length : 0);
 
-	function yFor(value: number) {
-		return padding.top + chartH - (value / max) * chartH;
+	function yFor(value: number, h: number, maxVal: number) {
+		return padding.top + h - (value / maxVal) * h;
 	}
 
 	const ticks = $derived(buildTicks(max));
@@ -39,7 +39,7 @@
 	<svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMinYMid meet" class="barSeries">
 		<!-- gridlines + Y ticks -->
 		{#each ticks as t (t)}
-			{@const y = yFor(t)}
+			{@const y = yFor(t, chartH, max)}
 			<line
 				x1={padding.left}
 				x2={width - padding.right}

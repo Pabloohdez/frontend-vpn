@@ -15,7 +15,10 @@ export type AuditAction =
 	| 'pihole_list_change'
 	| 'internet_block'
 	| 'internet_unblock'
-	| 'dns_report_export';
+	| 'dns_report_export'
+	| 'block_schedule_create'
+	| 'block_schedule_update'
+	| 'block_schedule_delete';
 
 export type AuditEntry = {
 	ts: string;

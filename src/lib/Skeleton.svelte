@@ -6,12 +6,16 @@
 		class?: string;
 	};
 	let { width = '100%', height = '12px', rounded = 'md', class: cls = '' }: Props = $props();
-	const radius = {
-		sm: '4px',
-		md: '6px',
-		lg: '12px',
-		pill: '999px'
-	}[rounded];
+	const radius = $derived(
+		(
+			{
+				sm: '4px',
+				md: '6px',
+				lg: '12px',
+				pill: '999px'
+			} as const
+		)[rounded]
+	);
 </script>
 
 <span

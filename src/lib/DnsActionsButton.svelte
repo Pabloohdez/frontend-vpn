@@ -123,10 +123,9 @@
 
 	function openModal(e: MouseEvent) {
 		stop(e);
-		const first = choices[0] ?? '';
-		selectedIp = first;
+		selectedIp = choices[0] ?? '';
 		manualIp =
-			first ||
+			selectedIp ||
 			(tableDeviceIp && tableDeviceIp !== '—' ? tableDeviceIp : '') ||
 			(tableVpnLan && tableVpnLan !== '—' ? tableVpnLan : '');
 		tab = showInternetTab ? 'internet' : 'domain';

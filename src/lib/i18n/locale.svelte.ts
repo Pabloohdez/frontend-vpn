@@ -43,7 +43,8 @@ class LocaleState {
 
 export const i18n = new LocaleState();
 
-/** Atajo en componentes Svelte. */
+/** Atajo en componentes Svelte (reactivo al cambiar idioma). */
 export function t(key: MessageKey, vars?: Record<string, string | number>) {
+	void i18n.locale;
 	return i18n.t(key, vars);
 }
