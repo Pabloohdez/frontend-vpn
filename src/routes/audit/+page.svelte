@@ -330,6 +330,7 @@
 			onkeydown={(e) => e.key === 'Escape' && (detailModal = null)}
 		>
 			<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 			<div
 				class="panel auditModal"
 				role="dialog"
@@ -359,8 +360,15 @@
 					Contenido técnico completo (JSON) registrado para esta acción. Puedes desplazarte con el teclado dentro del
 					bloque siguiente.
 				</p>
-				<div id="audit-detail-json" class="auditModalPre mono" role="region" aria-label="JSON del evento">
-					<pre tabindex="0">{JSON.stringify(detailModal.details, null, 2)}</pre>
+				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+				<div
+					id="audit-detail-json"
+					class="auditModalPre mono"
+					role="region"
+					aria-label="JSON del evento"
+					tabindex="0"
+				>
+					<pre>{JSON.stringify(detailModal.details, null, 2)}</pre>
 				</div>
 			</div>
 		</div>

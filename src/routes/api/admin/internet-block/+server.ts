@@ -60,7 +60,7 @@ export const POST: RequestHandler = async ({ request, fetch, getClientAddress })
 			ts: new Date().toISOString(),
 			actor: role,
 			action: op === 'block' ? 'internet_block' : 'internet_unblock',
-			target_cn: body?.cn?.trim() || null,
+			target_cn: body?.cn?.trim() || undefined,
 			success: result.ok,
 			remote_ip: getClientAddress(),
 			details: { ip, message: result.message, label, client: clientRaw || null, resolve_source: resolveSource ?? null }

@@ -623,11 +623,6 @@
 		line-height: 1.5;
 	}
 
-	.dnsActRowIps__val {
-		font-weight: 650;
-		color: var(--color-text);
-	}
-
 	.dnsActGrid {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
