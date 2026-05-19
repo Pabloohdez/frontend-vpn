@@ -3,7 +3,14 @@
 	import { goto } from '$app/navigation';
 
 	const status = $derived(page.status);
-	const message = $derived(page.error?.message ?? 'Algo no fue como esperaba');
+	const message = $derived.by(() => {
+		const err = page.error;
+		if (err instanceof Error) return err.message;
+		if (err && typeof err === 'object' && 'message' in err) {
+			return String((err as { message: unknown }).message ?? '');
+		}
+		return 'Algo no fue como esperaba';
+	});
 
 	const friendly = $derived.by(() => {
 		if (status === 404) {

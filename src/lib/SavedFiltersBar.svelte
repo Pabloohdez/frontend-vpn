@@ -1,4 +1,4 @@
-<script lang="ts" generics="T extends Record<string, unknown>">
+<script lang="ts">
 	import { onMount } from 'svelte';
 	import { toast } from './toast.svelte';
 	import {
@@ -8,21 +8,23 @@
 		type SavedFilter
 	} from './saved-filters';
 
+	type FilterData = Record<string, unknown>;
+
 	type Props = {
 		section: string;
-		current: T;
-		apply: (data: T) => void;
+		current: FilterData;
+		apply: (data: FilterData) => void;
 		labelPrefix?: string;
 	};
 
 	let { section, current, apply, labelPrefix = 'Filtros' }: Props = $props();
 
-	let items = $state<SavedFilter<T>[]>([]);
+	let items = $state<SavedFilter<FilterData>[]>([]);
 	let saving = $state(false);
 	let nameDraft = $state('');
 
 	function refresh() {
-		items = listSavedFilters<T>(section);
+		items = listSavedFilters<FilterData>(section);
 	}
 
 	onMount(refresh);
@@ -35,7 +37,7 @@
 		}
 		try {
 			saving = true;
-			saveFilter<T>(section, name, current);
+			saveFilter<FilterData>(section, name, current);
 			refresh();
 			nameDraft = '';
 			saving = false;
@@ -46,12 +48,12 @@
 		}
 	}
 
-	function onApply(item: SavedFilter<T>) {
+	function onApply(item: SavedFilter<FilterData>) {
 		apply(item.data);
 		toast.info(`Filtro «${item.name}» aplicado`);
 	}
 
-	function onDelete(item: SavedFilter<T>) {
+	function onDelete(item: SavedFilter<FilterData>) {
 		const ok = confirm(`¿Borrar el filtro «${item.name}»?`);
 		if (!ok) return;
 		deleteSavedFilter(section, item.id);

@@ -18,9 +18,11 @@ export type Shortcut = {
 	run: () => void;
 };
 
-const state = $state({ helpOpen: false });
+class ShortcutsUi {
+	helpOpen = $state(false);
+}
 
-export const shortcutsState = state;
+export const shortcutsState = new ShortcutsUi();
 
 function isEditable(target: EventTarget | null): boolean {
 	if (!(target instanceof HTMLElement)) return false;
@@ -49,7 +51,7 @@ export function shortcuts(): Shortcut[] {
 			keys: ['?'],
 			description: 'Mostrar / ocultar esta ayuda',
 			category: 'General',
-			run: () => (state.helpOpen = !state.helpOpen)
+			run: () => (shortcutsState.helpOpen = !shortcutsState.helpOpen)
 		},
 		{
 			keys: ['/'],
@@ -69,7 +71,7 @@ export function shortcuts(): Shortcut[] {
 }
 
 export function closeHelp() {
-	state.helpOpen = false;
+	shortcutsState.helpOpen = false;
 }
 
 export function installShortcuts(): () => void {
@@ -77,7 +79,7 @@ export function installShortcuts(): () => void {
 	const list = shortcuts();
 	const onKey = (e: KeyboardEvent) => {
 		if (e.key === 'Escape') {
-			state.helpOpen = false;
+			shortcutsState.helpOpen = false;
 			return;
 		}
 		if (isEditable(e.target)) return;

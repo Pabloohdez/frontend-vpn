@@ -45,7 +45,8 @@
 		};
 	}
 
-	function applyFilterState(s: DnsFilterState) {
+	function applyFilterState(raw: Record<string, unknown>) {
+		const s = raw as DnsFilterState;
 		q = s.q ?? '';
 		cn = s.cn ?? '';
 		deviceIpFilter = s.deviceIpFilter ?? '';
