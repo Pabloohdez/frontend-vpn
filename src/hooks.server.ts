@@ -1,7 +1,11 @@
 import type { Handle } from '@sveltejs/kit';
-import { dev } from '$app/environment';
 import { shouldUseSecureCookies } from '$lib/server/auth';
 
+/**
+ * Cabeceras de seguridad globales. La Content-Security-Policy se gestiona en
+ * `svelte.config.js` con `kit.csp` para que SvelteKit calcule hashes de los
+ * scripts inline (theme, hidratación) automáticamente.
+ */
 export const handle: Handle = async ({ event, resolve }) => {
 	const response = await resolve(event);
 
@@ -10,26 +14,26 @@ export const handle: Handle = async ({ event, resolve }) => {
 	response.headers.set('X-Frame-Options', 'DENY');
 	response.headers.set(
 		'Permissions-Policy',
-		'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()'
+		[
+			'camera=()',
+			'microphone=()',
+			'geolocation=()',
+			'payment=()',
+			'usb=()',
+			'magnetometer=()',
+			'gyroscope=()',
+			'accelerometer=()',
+			'interest-cohort=()'
+		].join(', ')
 	);
+	response.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+	response.headers.set('Cross-Origin-Resource-Policy', 'same-origin');
+	response.headers.set('X-DNS-Prefetch-Control', 'off');
 
 	if (shouldUseSecureCookies(event.request)) {
-		response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-	}
-
-	if (!dev) {
 		response.headers.set(
-			'Content-Security-Policy',
-			[
-				"default-src 'self'",
-				"script-src 'self' 'unsafe-inline'",
-				"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-				"font-src 'self' https://fonts.gstatic.com data:",
-				"img-src 'self' data:",
-				"connect-src 'self'",
-				"frame-ancestors 'none'",
-				"base-uri 'self'"
-			].join('; ')
+			'Strict-Transport-Security',
+			'max-age=31536000; includeSubDomains'
 		);
 	}
 

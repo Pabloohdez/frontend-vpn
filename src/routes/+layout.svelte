@@ -4,6 +4,8 @@
 	import SessionExpiryBanner from '$lib/SessionExpiryBanner.svelte';
 	import AuditorBanner from '$lib/AuditorBanner.svelte';
 	import SectionNav from '$lib/SectionNav.svelte';
+	import Toaster from '$lib/Toaster.svelte';
+	import ShortcutsHelp from '$lib/ShortcutsHelp.svelte';
 	import {
 		getAppSection,
 		openvpnLinks,
@@ -43,3 +45,6 @@
 <div class:shellPage={showAppNav}>
 	{@render children()}
 </div>
+
+<Toaster />
+<ShortcutsHelp />

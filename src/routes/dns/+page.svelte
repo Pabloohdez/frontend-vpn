@@ -19,6 +19,42 @@
 	import { countBroadSearch, topPiholeClients, type DnsQueryRow } from '$lib/dns-query-stats';
 	import DnsActionsButton from '$lib/DnsActionsButton.svelte';
 	import DnsReportExport from '$lib/DnsReportExport.svelte';
+	import SavedFiltersBar from '$lib/SavedFiltersBar.svelte';
+
+	type DnsFilterState = {
+		q: string;
+		cn: string;
+		deviceIpFilter: string;
+		deviceName: string;
+		onlyWithDeviceIp: boolean;
+		fromMins: number;
+		showLan: boolean;
+		group: boolean;
+	};
+
+	function currentFilterState(): DnsFilterState {
+		return {
+			q,
+			cn,
+			deviceIpFilter,
+			deviceName,
+			onlyWithDeviceIp,
+			fromMins,
+			showLan,
+			group
+		};
+	}
+
+	function applyFilterState(s: DnsFilterState) {
+		q = s.q ?? '';
+		cn = s.cn ?? '';
+		deviceIpFilter = s.deviceIpFilter ?? '';
+		deviceName = s.deviceName ?? '';
+		onlyWithDeviceIp = Boolean(s.onlyWithDeviceIp);
+		fromMins = Number(s.fromMins) || fromMins;
+		showLan = s.showLan ?? showLan;
+		group = s.group ?? group;
+	}
 
 	type VpnClient = { cn: string; virtual_address: string | null; real_address?: string | null };
 	type VpnStatus = { connected_clients: VpnClient[]; updated_at: string };
@@ -348,6 +384,22 @@
 		return Object.entries(netmonitorByIp)
 			.map(([ip, d]) => ({ ip, label: d.label || ip }))
 			.toSorted((a, b) => a.label.localeCompare(b.label, 'es'));
+	});
+
+	/** Paginación visual: para listas muy grandes, evita lag al pintar miles de filas. */
+	const PAGE_SIZE = 300;
+	let visibleLimit = $state(PAGE_SIZE);
+
+	$effect(() => {
+		// Reset cuando cambian filtros relevantes.
+		void qDebounced;
+		void cnDebounced;
+		void deviceIpDebounced;
+		void deviceNameDebounced;
+		void group;
+		void showLan;
+		void onlyWithDeviceIp;
+		visibleLimit = PAGE_SIZE;
 	});
 
 	const filtered = $derived.by(() => {
@@ -753,7 +805,14 @@
 			<fieldset class="dnsFilterGroup dnsFilterGroup--wide">
 				<legend>Búsqueda</legend>
 				<label class="dnsFilterLab" for="dns-filter-domain">Dominio o cliente</label>
-				<input id="dns-filter-domain" class="input" placeholder="ej. google.com o 192.168.1.x" bind:value={q} autocomplete="off" />
+				<input
+					id="dns-filter-domain"
+					class="input"
+					placeholder="ej. google.com o 192.168.1.x"
+					bind:value={q}
+					autocomplete="off"
+					data-shortcut="search"
+				/>
 				<label class="dnsFilterLab" for="dns-filter-cn">CN VPN</label>
 				<input id="dns-filter-cn" class="input" placeholder="nombre del certificado" bind:value={cn} autocomplete="off" />
 			</fieldset>
@@ -803,6 +862,13 @@
 			<label class="dnsChip"><input type="checkbox" bind:checked={onlyWithDeviceIp} /><span>Solo con IP conocida</span></label>
 			<label class="dnsChip"><input type="checkbox" bind:checked={group} /><span>Agrupar dominios</span></label>
 		</div>
+		<SavedFiltersBar
+			section="dns"
+			current={currentFilterState()}
+			apply={applyFilterState}
+			labelPrefix="Filtros DNS"
+		/>
+
 		<DnsReportExport
 			clientHint={deviceIpDebounced || deviceNameDebounced || cnDebounced || qDebounced}
 			busy={loading}
@@ -953,7 +1019,7 @@
 					</thead>
 					<tbody>
 						{#if group}
-							{#each grouped as g (`${g.key}:${g.ts}`)}
+							{#each grouped.slice(0, visibleLimit) as g (`${g.key}:${g.ts}`)}
 								{@const devG = deviceDisplay(g.client)}
 								<tr
 									class="groupRow"
@@ -1042,7 +1108,7 @@
 								{/if}
 							{/each}
 						{:else}
-							{#each filtered as row, i (`${row[0]}:${row[1]}:${row[2]}:${i}`)}
+							{#each filtered.slice(0, visibleLimit) as row, i (`${row[0]}:${row[1]}:${row[2]}:${i}`)}
 								{@const clientRaw = String(row[3] ?? '')}
 								{@const devRow = deviceDisplay(clientRaw)}
 								<tr>
@@ -1079,6 +1145,29 @@
 					</tbody>
 				</table>
 			</div>
+			{@const totalVisible = group ? grouped.length : filtered.length}
+			{#if totalVisible > visibleLimit}
+				<div class="dnsLoadMore">
+					<span class="dnsLoadMore__info">
+						Mostrando <strong>{visibleLimit.toLocaleString('es-ES')}</strong>
+						de <strong>{totalVisible.toLocaleString('es-ES')}</strong>
+					</span>
+					<button
+						type="button"
+						class="btn"
+						onclick={() => (visibleLimit = Math.min(totalVisible, visibleLimit + PAGE_SIZE))}
+					>
+						Cargar +{Math.min(PAGE_SIZE, totalVisible - visibleLimit).toLocaleString('es-ES')}
+					</button>
+					<button
+						type="button"
+						class="btn secondary"
+						onclick={() => (visibleLimit = totalVisible)}
+					>
+						Mostrar todo
+					</button>
+				</div>
+			{/if}
 			{/if}
 		</section>
 	{/if}

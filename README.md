@@ -13,6 +13,8 @@ exportables.
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](./docker-compose.prod.yml)
 [![License](https://img.shields.io/badge/license-MIT-green)](#licencia)
 
+**Español** · [English](./README.en.md)
+
 </div>
 
 ---
@@ -79,8 +81,17 @@ servidor de SvelteKit con cookies de sesión firmadas y control de roles.
 
 ## Capturas
 
-> Añade aquí capturas de tu instalación (no incluidas en el repo público para
-> no exponer datos reales).
+> Las capturas reales **no** se incluyen en el repo público (para no filtrar
+> IPs, dominios o usuarios). Si despliegas el panel y quieres añadir las
+> tuyas, guarda los archivos en [`docs/screenshots/`](./docs/screenshots/)
+> siguiendo la convención de nombres descrita allí y se mostrarán aquí
+> automáticamente.
+
+<!--
+  | ![Inicio](./docs/screenshots/01-home.png) | ![DNS](./docs/screenshots/02-dns.png) |
+  |---|---|
+  | Pantalla de inicio | Consultas DNS en vivo |
+-->
 
 ```
 /  →  Inicio                /pihole/listas      → Listas permitir/bloquear
