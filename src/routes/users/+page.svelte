@@ -2,6 +2,8 @@
 	import { onMount } from 'svelte';
 	import './page.css';
 	import { csrfHeaders } from '$lib/csrf-client';
+	import AuthGate from '$lib/AuthGate.svelte';
+	import { isUnauthorizedStatus, unauthorizedMessage } from '$lib/auth-client';
 
 	type UserRow = { status: string; name: string; expiration?: string };
 
@@ -10,6 +12,7 @@
 	let hiddenRevoked = $state<Set<string>>(new Set());
 	let usersLoading = $state(false);
 	let usersError = $state<string | null>(null);
+	let needsAuth = $state(false);
 
 	let newCn = $state('');
 	let newDays = $state(365);
@@ -135,13 +138,15 @@
 	async function loadUsers() {
 		usersLoading = true;
 		usersError = null;
+		needsAuth = false;
 		const [usersRes, aliasRes, hiddenRes] = await Promise.all([
 			fetch('/api/admin/users', { headers: { 'cache-control': 'no-cache' } }),
 			fetch('/api/admin/user-aliases', { headers: { 'cache-control': 'no-cache' } }),
 			fetch('/api/admin/revoked-hidden', { headers: { 'cache-control': 'no-cache' } })
 		]);
 		if (!usersRes.ok) {
-			usersError = usersRes.status === 401 ? 'Necesitas login de admin' : `Error ${usersRes.status}`;
+			needsAuth = isUnauthorizedStatus(usersRes.status);
+			usersError = needsAuth ? unauthorizedMessage(usersRes.status) : `Error ${usersRes.status}`;
 			users = [];
 			aliases = {};
 			hiddenRevoked = new Set();
@@ -494,7 +499,9 @@
 			</select>
 		</div>
 
-		{#if usersError}
+		{#if needsAuth}
+			<AuthGate message={usersError ?? undefined} />
+		{:else if usersError}
 			<div class="panel cardError">{usersError}</div>
 		{:else if usersLoading}
 			<p class="muted">Cargando usuarios…</p>

@@ -15,6 +15,7 @@
 	padding: 12px 14px;
 	border-radius: 12px;
 	border: 1px solid var(--border-default);
+	box-shadow: 0 8px 22px rgba(0, 0, 0, 0.05);
 }
 
 .page-seguridad .secAlert--warn {
@@ -30,13 +31,94 @@
 .page-seguridad .secAlert__title {
 	display: block;
 	font-size: 14px;
-	margin-bottom: 4px;
+	margin: 0;
 }
 
 .page-seguridad .secAlert__detail {
 	margin: 0;
 	font-size: 13px;
 	line-height: 1.45;
+}
+
+.page-seguridad .secFilterCrit {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+	color: var(--color-muted);
+	cursor: pointer;
+	user-select: none;
+}
+
+.page-seguridad .secCritBanner {
+	margin: 0 0 12px;
+	padding: 10px 12px;
+	border-radius: 10px;
+	border: 1px solid color-mix(in srgb, #ef4444 35%, var(--border-default));
+	background: color-mix(in srgb, #ef4444 8%, var(--bg-card));
+	font-size: 13px;
+}
+
+.page-seguridad .secAlertExpand {
+	margin-top: 6px;
+}
+
+.page-seguridad .secAlertExpand summary {
+	cursor: pointer;
+	font-size: 12.5px;
+	list-style: none;
+}
+
+.page-seguridad .secAlertExpand summary::-webkit-details-marker {
+	display: none;
+}
+
+.page-seguridad .secAlertExpand[open] summary {
+	margin-bottom: 6px;
+}
+
+.page-seguridad .secAlert__head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	margin-bottom: 6px;
+}
+
+.page-seguridad .secBadge {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 3px 10px;
+	border-radius: 999px;
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	border: 1px solid var(--border-default);
+	background: color-mix(in srgb, var(--border-subtle) 55%, var(--bg-card));
+	color: var(--color-text);
+	white-space: nowrap;
+}
+
+.page-seguridad .secBadge--warn {
+	border-color: color-mix(in srgb, #f59e0b 45%, var(--border-default));
+	background: color-mix(in srgb, #f59e0b 14%, var(--bg-card));
+	color: #92400e;
+}
+
+.page-seguridad .secBadge--critical {
+	border-color: color-mix(in srgb, #ef4444 45%, var(--border-default));
+	background: color-mix(in srgb, #ef4444 12%, var(--bg-card));
+	color: #991b1b;
+}
+
+[data-theme='dark'] .page-seguridad .secBadge--warn {
+	color: #fbbf24;
+}
+
+[data-theme='dark'] .page-seguridad .secBadge--critical {
+	color: #fca5a5;
 }
 
 .page-seguridad .sub {
@@ -232,6 +314,7 @@
 	border-radius: 10px;
 	border: 1px solid var(--border-subtle);
 	background: var(--bg-card);
+	box-shadow: 0 10px 26px rgba(0, 0, 0, 0.06);
 }
 .page-seguridad .secAnom--warn {
 	border-color: #fde68a;
@@ -247,16 +330,44 @@
 	gap: 8px;
 	align-items: center;
 }
-.page-seguridad .secAnom__mult {
-	padding: 2px 8px;
-	border-radius: 999px;
-	background: var(--color-accent, #0d9488);
-	color: #fff;
-	font-size: 11.5px;
-	font-weight: 700;
+
+.page-seguridad .secAnom__name {
+	font-size: 13.5px;
 }
-.page-seguridad .secAnom--critical .secAnom__mult {
-	background: #b91c1c;
+
+.page-seguridad .secAnom__meta {
+	margin-top: 6px;
+	line-height: 1.35;
+	font-size: 12.5px;
+}
+
+.page-seguridad .secAnom__actions {
+	margin-top: 8px;
+	display: flex;
+	justify-content: flex-end;
+}
+
+.page-seguridad .secLink {
+	font-size: 12.5px;
+	font-weight: 700;
+	color: var(--focus-ring);
+	text-decoration: none;
+}
+
+.page-seguridad .secLink:hover {
+	text-decoration: underline;
+}
+
+.page-seguridad .secThreat__domain {
+	margin-top: 8px;
+	padding: 8px 10px;
+	border-radius: 10px;
+	border: 1px solid var(--border-default);
+	background: color-mix(in srgb, var(--border-subtle) 55%, var(--bg-card));
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 12px;
 }
 .page-seguridad .secAnom__meta {
 	font-size: 12px;

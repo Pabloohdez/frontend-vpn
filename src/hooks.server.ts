@@ -56,11 +56,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 			'interest-cohort=()'
 		].join(', ')
 	);
-	response.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
-	response.headers.set('Cross-Origin-Resource-Policy', 'same-origin');
 	response.headers.set('X-DNS-Prefetch-Control', 'off');
 
+	// COOP/CORP en HTTP LAN provocan avisos en consola y no aportan en acceso local sin TLS.
 	if (shouldUseSecureCookies(event.request)) {
+		response.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+		response.headers.set('Cross-Origin-Resource-Policy', 'same-origin');
 		response.headers.set(
 			'Strict-Transport-Security',
 			'max-age=31536000; includeSubDomains'

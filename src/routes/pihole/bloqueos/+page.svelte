@@ -2,6 +2,8 @@
 	import { onMount } from 'svelte';
 	import BlockSchedulePanel from '$lib/BlockSchedulePanel.svelte';
 	import { csrfHeaders } from '$lib/csrf-client';
+	import AuthGate from '$lib/AuthGate.svelte';
+	import { isUnauthorizedStatus, unauthorizedMessage } from '$lib/auth-client';
 	import './page.css';
 
 	type Device = {
@@ -25,6 +27,7 @@
 	let devices = $state<Device[]>([]);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
+	let needsAuth = $state(false);
 	let isAdmin = $state(false);
 	let netmonitorConfigured = $state(false);
 	let netmonitorReachable = $state(false);
@@ -89,6 +92,7 @@
 	async function load() {
 		loading = devices.length === 0;
 		error = null;
+		needsAuth = false;
 		const [meRes, devRes] = await Promise.all([
 			fetch('/api/auth/me', { headers: { 'cache-control': 'no-cache' } }),
 			fetch('/api/admin/network-devices', { headers: { 'cache-control': 'no-cache' } })
@@ -98,10 +102,10 @@
 			isAdmin = Boolean(me?.isAdmin);
 		}
 		if (!devRes.ok) {
-			error =
-				devRes.status === 401
-					? 'Necesitas sesión de administrador o auditor'
-					: `Error al cargar dispositivos (${devRes.status})`;
+			needsAuth = isUnauthorizedStatus(devRes.status);
+			error = needsAuth
+				? unauthorizedMessage(devRes.status)
+				: `Error al cargar dispositivos (${devRes.status})`;
 			devices = [];
 			loading = false;
 			return;
@@ -161,7 +165,9 @@
 		</div>
 	</header>
 
-	{#if error}
+	{#if needsAuth}
+		<AuthGate message={error ?? undefined} />
+	{:else if error}
 		<section class="panel cardError">{error}</section>
 	{:else}
 		{#if netmonitorConfigured && !netmonitorReachable}

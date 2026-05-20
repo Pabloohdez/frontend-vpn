@@ -1,8 +1,10 @@
 .launcher {
 	min-height: 100vh;
+	height: 100vh;
 	display: flex;
 	flex-direction: column;
 	background: var(--bg-body);
+	overflow: hidden;
 }
 
 .launcher__top {
@@ -56,7 +58,7 @@
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
-	padding: 32px 20px 48px;
+	padding: 26px 20px 34px;
 	text-align: center;
 }
 
@@ -68,7 +70,7 @@
 }
 
 .launcher__sub {
-	margin: 0 0 36px;
+	margin: 0 0 22px;
 	max-width: 28rem;
 	font-size: 14px;
 }
@@ -95,7 +97,7 @@
 .launcher__cards {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 24px;
+	gap: 18px;
 	justify-content: center;
 	width: 100%;
 	max-width: 720px;
@@ -104,8 +106,8 @@
 .launcher__card {
 	flex: 1 1 240px;
 	max-width: 320px;
-	min-height: 140px;
-	padding: 28px 32px;
+	min-height: 124px;
+	padding: 22px 26px;
 	border-radius: 999px;
 	border: 2px solid var(--border-default);
 	background: var(--bg-card);
@@ -177,4 +179,47 @@
 
 [data-theme='dark'] .launcher__card {
 	box-shadow: 0 10px 32px rgba(0, 0, 0, 0.4);
+}
+
+@media (max-width: 640px) {
+	.launcher__body {
+		justify-content: flex-start;
+		padding-top: 20px;
+		overflow-y: auto;
+	}
+	.launcher {
+		overflow: hidden;
+	}
+	.launcher__cards {
+		flex-direction: column;
+		align-items: stretch;
+		max-width: 420px;
+	}
+	.launcher__card {
+		flex: none;
+		max-width: none;
+		width: 100%;
+		min-height: 108px;
+		border-radius: 20px;
+	}
+	.launcher__card--audit {
+		max-width: none;
+	}
+}
+
+/* Pantallas bajas: modo compacto para evitar scroll */
+@media (max-height: 740px) {
+	.launcher__body {
+		padding: 18px 16px 22px;
+	}
+	.launcher__sub {
+		margin-bottom: 16px;
+	}
+	.launcher__cards {
+		gap: 14px;
+	}
+	.launcher__card {
+		min-height: 112px;
+		padding: 18px 22px;
+	}
 }

@@ -20,6 +20,9 @@
 	import DnsActionsButton from '$lib/DnsActionsButton.svelte';
 	import DnsReportExport from '$lib/DnsReportExport.svelte';
 	import SavedFiltersBar from '$lib/SavedFiltersBar.svelte';
+	import AuthGate from '$lib/AuthGate.svelte';
+	import { isUnauthorizedStatus, unauthorizedMessage } from '$lib/auth-client';
+	import { describeApiFailure } from '$lib/api-errors';
 
 	type DnsFilterState = {
 		q: string;
@@ -63,6 +66,7 @@
 	let fromMins = $state(60);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
+	let needsAuth = $state(false);
 	let queries = $state<DnsQueryRow[]>([]);
 
 	let q = $state('');
@@ -173,7 +177,9 @@
 			body: JSON.stringify({ domain, list, op: 'add', mode })
 		});
 		if (!res.ok) {
-			pushNotice('error', `No se pudo actualizar Pi-hole (HTTP ${res.status})`, 6500);
+			const body = await res.json().catch(() => null);
+			const fail = describeApiFailure(res.status, body, 'No se pudo actualizar Pi-hole.');
+			pushNotice('error', fail.message, fail.rateLimited ? 10_000 : 6500);
 			setDomainBusy(key, { block: false, allow: false, blockWild: false, allowWild: false });
 			return;
 		}
@@ -202,7 +208,9 @@
 			body: JSON.stringify({ domain, list, op: 'remove', mode })
 		});
 		if (!res.ok) {
-			pushNotice('error', `No se pudo actualizar Pi-hole (HTTP ${res.status})`, 6500);
+			const body = await res.json().catch(() => null);
+			const fail = describeApiFailure(res.status, body, 'No se pudo actualizar Pi-hole.');
+			pushNotice('error', fail.message, fail.rateLimited ? 10_000 : 6500);
 			setDomainBusy(key, { unblock: false, unallow: false, unblockWild: false, unallowWild: false });
 			return;
 		}
@@ -630,6 +638,7 @@
 	async function load() {
 		loading = true;
 		error = null;
+		needsAuth = false;
 
 		const meRes = await fetch('/api/auth/me', { headers: { 'cache-control': 'no-cache' } });
 		if (meRes.ok) {
@@ -678,16 +687,17 @@
 
 		if (!dnsRes.ok) {
 			const body = await dnsRes.json().catch(() => null) as { message?: string } | null;
-			error =
-				dnsRes.status === 401
-					? 'Necesitas sesión de administrador o auditor'
-					: dnsRes.status === 502
-						? (body?.message ?? 'Pi-hole no respondió')
-						: `Error ${dnsRes.status}`;
+			needsAuth = isUnauthorizedStatus(dnsRes.status);
+			error = needsAuth
+				? unauthorizedMessage(dnsRes.status)
+				: dnsRes.status === 502
+					? (body?.message ?? 'Pi-hole no respondió')
+					: `Error ${dnsRes.status}`;
 			queries = [];
 			loading = false;
 			return;
 		}
+		needsAuth = false;
 		const data = await dnsRes.json();
 		queries = (data?.data ?? []) as DnsQueryRow[];
 		dnsMeta = (data?.meta ?? null) as { count?: number; source?: string; hint?: string } | null;
@@ -901,8 +911,10 @@
 		</details>
 	</section>
 
-	{#if error}
-	<section class="panel cardError">{error}</section>
+	{#if needsAuth}
+		<AuthGate message={error ?? undefined} />
+	{:else if error}
+		<section class="panel cardError">{error}</section>
 	{:else if loading}
 		<section class="dnsPanel dnsPanel--loading"><p class="muted">Cargando consultas…</p></section>
 	{:else}

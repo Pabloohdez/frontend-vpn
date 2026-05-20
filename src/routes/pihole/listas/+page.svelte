@@ -4,6 +4,9 @@
 	import type { PiholeLists } from '$lib/pihole-lists';
 	import { isApplied as isAppliedShared, normalizeDomain } from '$lib/pihole-lists';
 	import { csrfHeaders } from '$lib/csrf-client';
+	import AuthGate from '$lib/AuthGate.svelte';
+	import { isUnauthorizedStatus, unauthorizedMessage } from '$lib/auth-client';
+	import { describeApiFailure } from '$lib/api-errors';
 
 	type Notice = { id: string; kind: 'error' | 'ok'; message: string };
 	let notices = $state<Notice[]>([]);
@@ -16,6 +19,7 @@
 	let allowed = $state<{ exact: string[]; wildcard: string[] } | null>(null);
 	let listsLoading = $state(true);
 	let listsError = $state<string | null>(null);
+	let needsAuth = $state(false);
 
 	let listFilter = $state('');
 
@@ -72,14 +76,17 @@
 	async function loadLists() {
 		listsLoading = blocked === null && allowed === null;
 		listsError = null;
+		needsAuth = false;
 		const res = await fetch('/api/admin/pihole/lists', { headers: { 'cache-control': 'no-cache' } });
 		const data = await res.json().catch(() => null);
 		if (!res.ok) {
 			blocked = { exact: [], wildcard: [] };
 			allowed = { exact: [], wildcard: [] };
-			listsError =
-				(data as { message?: string } | null)?.message ??
-				`No se pudieron leer las listas de Pi-hole (HTTP ${res.status}). Revisa PIHOLE_BASE_URL y PIHOLE_API_TOKEN.`;
+			needsAuth = isUnauthorizedStatus(res.status);
+			listsError = needsAuth
+				? unauthorizedMessage(res.status)
+				: ((data as { message?: string } | null)?.message ??
+					`No se pudieron leer las listas de Pi-hole (HTTP ${res.status}). Revisa PIHOLE_BASE_URL y PIHOLE_API_TOKEN.`);
 			pushNotice('error', listsError, 10_000);
 			listsLoading = false;
 			return;
@@ -124,7 +131,8 @@
 		});
 		const body = await res.json().catch(() => null);
 		if (!res.ok || body?.ok === false) {
-			pushNotice('error', body?.message ?? `Pi-hole: error HTTP ${res.status}`, 8000);
+			const fail = describeApiFailure(res.status, body, 'Pi-hole: error en la petición.');
+			pushNotice('error', fail.message, fail.rateLimited ? 10_000 : 8000);
 			busy = false;
 			return;
 		}
@@ -223,6 +231,10 @@
 				</div>
 			{/each}
 		</div>
+	{/if}
+
+	{#if needsAuth}
+		<AuthGate message={listsError ?? undefined} />
 	{/if}
 
 	<header class="panelHero">

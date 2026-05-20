@@ -5,6 +5,8 @@
 	import HBarList from '$lib/charts/HBarList.svelte';
 	import Skeleton from '$lib/Skeleton.svelte';
 	import EmptyState from '$lib/EmptyState.svelte';
+	import AuthGate from '$lib/AuthGate.svelte';
+	import { isUnauthorizedStatus, unauthorizedMessage } from '$lib/auth-client';
 	import { t } from '$lib/i18n/locale.svelte';
 	import './page.css';
 
@@ -42,19 +44,19 @@
 	let data = $state<Payload | null>(null);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
+	let needsAuth = $state(false);
 
 	async function load() {
 		loading = data === null;
 		error = null;
+		needsAuth = false;
 		try {
 			const res = await fetch(`/api/admin/dashboard?range=${range}`, {
 				headers: { 'cache-control': 'no-cache' }
 			});
 			if (!res.ok) {
-				error =
-					res.status === 401
-						? 'Necesitas sesión de administrador o auditor'
-						: `Error ${res.status}`;
+				needsAuth = isUnauthorizedStatus(res.status);
+				error = needsAuth ? unauthorizedMessage(res.status) : `Error ${res.status}`;
 				data = null;
 			} else {
 				data = (await res.json()) as Payload;
@@ -119,7 +121,9 @@
 		</div>
 	</header>
 
-	{#if error}
+	{#if needsAuth}
+		<AuthGate message={error ?? undefined} />
+	{:else if error}
 		<section class="panel cardError">{error}</section>
 	{:else if loading && !data}
 		<section class="dashGrid">

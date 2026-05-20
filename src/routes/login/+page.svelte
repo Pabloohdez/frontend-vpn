@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { loginErrorMessage } from '$lib/api-errors';
 	import './page.css';
 
 	let password = $state('');
@@ -27,12 +28,7 @@
 			});
 			const j = await res.json().catch(() => null);
 			if (!res.ok) {
-				err =
-					j?.error === 'totp_required'
-						? '2FA requerido: introduce el código TOTP o un recovery code.'
-						: res.status === 429
-							? 'Demasiados intentos. Espera un momento.'
-							: 'Credenciales inválidas';
+				err = loginErrorMessage(res.status, j);
 				return;
 			}
 			password = '';

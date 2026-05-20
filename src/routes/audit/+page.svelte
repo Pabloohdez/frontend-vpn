@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
+	import AuthGate from '$lib/AuthGate.svelte';
+	import { isUnauthorizedStatus, unauthorizedMessage } from '$lib/auth-client';
 	import './page.css';
 
 	type Row = {
@@ -14,6 +16,7 @@
 
 	let rows = $state<Row[]>([]);
 	let error = $state<string | null>(null);
+	let needsAuth = $state(false);
 	let loading = $state(true);
 
 	type Notice = { id: string; kind: 'error' | 'ok'; message: string };
@@ -49,6 +52,7 @@
 	async function load(opts?: { notify?: 'apply' | 'reset' }) {
 		loading = true;
 		error = null;
+		needsAuth = false;
 		const q = new URLSearchParams();
 		if (limit) q.set('limit', String(limit));
 		if (fromDay) q.set('from', fromDay);
@@ -58,7 +62,8 @@
 		if (ok) q.set('ok', ok);
 		const res = await fetch(`/api/admin/audit?${q.toString()}`);
 		if (!res.ok) {
-			error = `Error ${res.status}`;
+			needsAuth = isUnauthorizedStatus(res.status);
+			error = needsAuth ? unauthorizedMessage(res.status) : `Error ${res.status}`;
 			rows = [];
 			loading = false;
 			return;
@@ -258,7 +263,9 @@
 		</div>
 	</section>
 
-	{#if error}
+	{#if needsAuth}
+		<AuthGate message={error ?? undefined} />
+	{:else if error}
 		<section class="panel cardError">{error}</section>
 	{:else if loading}
 		<section class="panel panel--loading"><p class="muted">Cargando registros…</p></section>

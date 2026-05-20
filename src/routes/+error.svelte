@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { loginHref } from '$lib/auth-client';
 
 	const status = $derived(page.status);
 	const message = $derived.by(() => {
@@ -56,8 +57,11 @@
 			<p class="errorDetail mono" aria-label="Detalle técnico">{message}</p>
 		{/if}
 		<div class="errorActions">
+			{#if status === 401 || status === 403}
+				<a class="btn primary" href={loginHref()}>Iniciar sesión</a>
+			{/if}
 			<button type="button" class="btn" onclick={back}>← Volver</button>
-			<a class="btn primary" href="/">Ir al inicio</a>
+			<a class="btn secondary" href="/">Ir al inicio</a>
 		</div>
 	</div>
 </main>

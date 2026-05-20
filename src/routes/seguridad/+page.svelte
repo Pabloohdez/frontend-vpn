@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import AuthGate from '$lib/AuthGate.svelte';
+	import { isUnauthorizedStatus, unauthorizedMessage } from '$lib/auth-client';
 	import './page.css';
 
 	type DnsInsights = {
@@ -63,8 +65,28 @@
 
 	let loading = $state(true);
 	let error = $state<string | null>(null);
+	let needsAuth = $state(false);
 	let data = $state<Payload | null>(null);
 	let windowHours = $state(24);
+	let onlyCritical = $state(false);
+
+	const visibleAlerts = $derived(
+		(data?.alerts ?? []).filter((a) => !onlyCritical || a.severity === 'critical')
+	);
+	const visibleAnomalies = $derived(
+		(data?.anomalies ?? []).filter((a) => !onlyCritical || a.severity === 'critical')
+	);
+	const visibleThreats = $derived(
+		(data?.threats ?? []).filter((t) => !onlyCritical || t.score >= 80)
+	);
+
+	const criticalCount = $derived.by(() => {
+		if (!data) return 0;
+		const alerts = (data.alerts ?? []).filter((a) => a.severity === 'critical').length;
+		const anoms = (data.anomalies ?? []).filter((a) => a.severity === 'critical').length;
+		const threats = (data.threats ?? []).filter((t) => t.score >= 80).length;
+		return alerts + anoms + threats;
+	});
 
 	function barPct(count: number, max: number) {
 		if (!max) return 0;
@@ -74,11 +96,13 @@
 	async function load() {
 		loading = data === null;
 		error = null;
+		needsAuth = false;
 		const res = await fetch(`/api/admin/security-insights?window_hours=${windowHours}`, {
 			headers: { 'cache-control': 'no-cache' }
 		});
 		if (!res.ok) {
-			error = res.status === 401 ? 'Necesitas sesión de administrador o auditor' : `Error ${res.status}`;
+			needsAuth = isUnauthorizedStatus(res.status);
+			error = needsAuth ? unauthorizedMessage(res.status) : `Error ${res.status}`;
 			data = null;
 			loading = false;
 			return;
@@ -108,44 +132,68 @@
 				max="168"
 				bind:value={windowHours}
 			/>
+			<label class="secFilterCrit">
+				<input type="checkbox" bind:checked={onlyCritical} />
+				Solo críticos
+			</label>
 			<button type="button" class="btn secondary btnAccent" disabled={loading} onclick={load}>
 				{loading ? 'Cargando…' : 'Actualizar'}
 			</button>
 		</div>
 	</header>
 
-	{#if error}
+	{#if needsAuth}
+		<AuthGate message={error ?? undefined} />
+	{:else if error}
 		<section class="panel cardError">{error}</section>
 	{:else if loading && !data}
 		<section class="panel panel--loading"><p class="muted">Cargando métricas…</p></section>
 	{:else if data}
-		{#if data.alerts && data.alerts.length > 0}
+		{#if criticalCount > 0 && !onlyCritical}
+			<p class="secCritBanner muted">
+				{criticalCount} elemento(s) crítico(s). Activa «Solo críticos» para centrarte en lo urgente.
+			</p>
+		{/if}
+
+		{#if visibleAlerts.length > 0}
 			<section class="panel secAlerts" aria-label="Alertas de seguridad">
-				<h2 class="panel__h2">Alertas</h2>
+				<h2 class="panel__h2">Alertas ({visibleAlerts.length})</h2>
 				<ul class="secAlerts__list">
-					{#each data.alerts as alert (alert.id)}
+					{#each visibleAlerts as alert (alert.id)}
 						<li class="secAlert secAlert--{alert.severity}">
-							<strong class="secAlert__title">{alert.title}</strong>
-							<p class="secAlert__detail muted">{alert.detail}</p>
+							<div class="secAlert__head">
+								<strong class="secAlert__title">{alert.title}</strong>
+								<span class="secBadge secBadge--{alert.severity}">
+									{alert.severity === 'critical' ? 'Crítico' : 'Aviso'}
+								</span>
+							</div>
+							{#if alert.detail.length > 120}
+								<details class="secAlertExpand">
+									<summary class="muted">Ver detalle</summary>
+									<p class="secAlert__detail muted">{alert.detail}</p>
+								</details>
+							{:else}
+								<p class="secAlert__detail muted">{alert.detail}</p>
+							{/if}
 						</li>
 					{/each}
 				</ul>
 			</section>
 		{/if}
 
-		{#if data.anomalies && data.anomalies.length > 0}
+		{#if visibleAnomalies.length > 0}
 			<section class="panel secAnoms" aria-label="Anomalías de actividad DNS">
-				<h2 class="panel__h2">Anomalías DNS</h2>
+				<h2 class="panel__h2">Anomalías DNS ({visibleAnomalies.length})</h2>
 				<p class="muted secAnoms__hint">
 					Dispositivos con actividad muy superior a su media de los últimos 7 días.
 				</p>
 				<ul class="secAnoms__list">
-					{#each data.anomalies as a (a.client)}
+					{#each visibleAnomalies as a (a.client)}
 						<li class="secAnom secAnom--{a.severity}">
 							<div class="secAnom__head">
 								<strong class="secAnom__name">{a.label ?? a.client}</strong>
-								<span class="secAnom__mult mono">
-									{Number.isFinite(a.multiplier) ? `×${a.multiplier}` : 'nuevo'}
+								<span class="secBadge secBadge--{a.severity}">
+									{Number.isFinite(a.multiplier) ? `×${a.multiplier}` : 'Nuevo'}
 								</span>
 							</div>
 							<div class="secAnom__meta muted">
@@ -159,8 +207,9 @@
 										(sin historial reciente)
 									{/if}
 								</span>
-								·
-								<a href={`/dns?device_ip=${encodeURIComponent(a.client)}`}>Ver consultas</a>
+							</div>
+							<div class="secAnom__actions">
+								<a class="secLink" href={`/dns?device_ip=${encodeURIComponent(a.client)}`}>Ver consultas</a>
 							</div>
 						</li>
 					{/each}
@@ -168,22 +217,29 @@
 			</section>
 		{/if}
 
-		{#if data.threats && data.threats.length > 0}
+		{#if visibleThreats.length > 0}
 			<section class="panel secThreats" aria-label="Sospechas de DNS tunneling">
-				<h2 class="panel__h2">Sospechas (DNS tunneling)</h2>
+				<h2 class="panel__h2">Sospechas DNS ({visibleThreats.length})</h2>
 				<p class="muted secAnoms__hint">
 					Heurísticas: subdominios largos/alta entropía y consultas TXT inusuales. Revisa antes de actuar.
 				</p>
 				<ul class="secAnoms__list">
-					{#each data.threats as t (`${t.kind}-${t.client}-${t.domain}`)}
+					{#each visibleThreats as t (`${t.kind}-${t.client}-${t.domain}`)}
 						<li class="secAnom secAnom--{t.score >= 80 ? 'critical' : 'warn'}">
 							<div class="secAnom__head">
 								<strong class="secAnom__name">{t.label ?? t.client}</strong>
-								<span class="secAnom__mult mono">{t.kind === 'txt_suspect' ? 'TXT' : `score ${t.score}`}</span>
+								<span class="secBadge secBadge--{t.score >= 80 ? 'critical' : 'warn'}">
+									{t.kind === 'txt_suspect' ? 'TXT' : `Score ${t.score}`}
+								</span>
 							</div>
+							<div class="secThreat__domain mono" title={t.domain}>{t.domain}</div>
 							<div class="secAnom__meta muted">
-								<span class="mono">{t.domain}</span> · <span class="mono">{t.client}</span> ·
-								<a href={`/dns?device_ip=${encodeURIComponent(t.client)}`}>Ver consultas</a>
+								<span class="mono">{t.client}</span>
+								·
+								<span>{t.detail}</span>
+							</div>
+							<div class="secAnom__actions">
+								<a class="secLink" href={`/dns?device_ip=${encodeURIComponent(t.client)}`}>Ver consultas</a>
 							</div>
 						</li>
 					{/each}

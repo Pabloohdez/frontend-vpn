@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { todayLocalIso } from '$lib/dns-report-utils';
+	import AuthGate from '$lib/AuthGate.svelte';
+	import { describeFetchResponse } from '$lib/api-errors';
 
 	let {
 		clientHint = '',
@@ -13,6 +15,7 @@
 	let reportClient = $state('');
 	let exporting = $state(false);
 	let error = $state<string | null>(null);
+	let needsAuth = $state(false);
 
 	$effect(() => {
 		if (clientHint && !reportClient) reportClient = clientHint;
@@ -20,6 +23,7 @@
 
 	async function exportPdf() {
 		error = null;
+		needsAuth = false;
 		exporting = true;
 		const params = new URLSearchParams({ day: reportDay.trim() });
 		const client = reportClient.trim();
@@ -30,8 +34,9 @@
 				headers: { 'cache-control': 'no-cache' }
 			});
 			if (!res.ok) {
-				const text = await res.text().catch(() => '');
-				error = text || `Error HTTP ${res.status}`;
+				const fail = await describeFetchResponse(res, 'No se pudo generar el informe PDF.');
+				needsAuth = fail.needsAuth;
+				error = fail.message;
 				return;
 			}
 			const blob = await res.blob();
@@ -82,7 +87,11 @@
 			{exporting ? 'Generando…' : 'Exportar PDF'}
 		</button>
 	</div>
-	{#if error}
+	{#if needsAuth}
+		<div class="dnsReport__authGate">
+			<AuthGate message={error ?? undefined} nextPath="/dns" />
+		</div>
+	{:else if error}
 		<p class="dnsReport__error" role="alert">{error}</p>
 	{/if}
 </div>
@@ -121,28 +130,32 @@
 	}
 
 	.dnsReport__field--grow {
-		flex: 1;
+		flex: 1 1 12rem;
 		min-width: 12rem;
 	}
 
 	.dnsReport__lab {
 		font-size: 11px;
-		font-weight: 600;
-		color: var(--color-muted);
+		color: var(--text-muted);
 	}
 
 	.dnsReport__btn {
 		flex-shrink: 0;
-		white-space: nowrap;
 	}
 
 	.dnsReport__error {
 		margin: 10px 0 0;
 		font-size: 12px;
-		color: #fecaca;
-		padding: 8px 10px;
-		border-radius: 8px;
-		border: 1px solid color-mix(in srgb, #ef4444 40%, transparent);
-		background: color-mix(in srgb, #ef4444 12%, var(--bg-card));
+		color: var(--danger, #c44);
+	}
+
+	.dnsReport__authGate :global(.authGate) {
+		margin: 12px 0 0;
+		max-width: none;
+		text-align: left;
+	}
+
+	.dnsReport__authGate :global(.authGate__actions) {
+		justify-content: flex-start;
 	}
 </style>
