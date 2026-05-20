@@ -809,7 +809,7 @@
 				<input
 					id="dns-filter-domain"
 					class="input"
-					placeholder="ej. google.com o 192.168.1.x"
+					placeholder="ej. google.com o 192.0.2.x"
 					bind:value={q}
 					autocomplete="off"
 					data-shortcut="search"
@@ -823,7 +823,7 @@
 			<input
 				id="dns-filter-device-ip"
 				class="input mono"
-				placeholder="192.168.x.x o 10.8.0.x"
+				placeholder="192.0.2.x o 203.0.113.x"
 				bind:value={deviceIpFilter}
 				autocomplete="off"
 				list="dns-known-ips"

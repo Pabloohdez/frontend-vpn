@@ -3,7 +3,7 @@ import { scheduleActiveNow, type BlockSchedule } from './block-schedules-store';
 
 const base: BlockSchedule = {
 	id: '1',
-	ip: '192.168.1.10',
+	ip: '192.0.2.10',
 	label: 'Test',
 	enabled: true,
 	days: [1, 2, 3, 4, 5],

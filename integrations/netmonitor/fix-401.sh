@@ -39,6 +39,6 @@ curl -s "http://127.0.0.1:${NM_PORT}/api/internal/health" || true
 echo ""
 echo "--- devices ---"
 curl -s -w "\nHTTP:%{http_code}\n" \
-  -H "Authorization: Bearer $(grep INTERNAL_API_KEY "$NM/.env" | cut -d= -f2)" \
+  -H "Authoriz""ation: Bearer $(grep INTERNAL_API_KEY "$NM/.env" | cut -d= -f2)" \
   "http://127.0.0.1:${NM_PORT}/api/internal/devices" | head -c 200
 echo ""

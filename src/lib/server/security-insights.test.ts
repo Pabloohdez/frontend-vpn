@@ -18,9 +18,9 @@ describe('isPiholeQueryBlockedStatus', () => {
 describe('aggregateDnsInsights', () => {
 	it('cuenta dominios y bloqueos', () => {
 		const rows: PiholeQueryTuple[] = [
-			[1, 'A', 'ads.example.com', '10.0.0.1', 1],
-			[2, 'A', 'ok.example.com', '10.0.0.1', 2],
-			[3, 'A', 'ads.example.com', '10.0.0.2', 1]
+			[1, 'A', 'ads.example.com', '192.0.2.1', 1],
+			[2, 'A', 'ok.example.com', '192.0.2.1', 2],
+			[3, 'A', 'ads.example.com', '198.51.100.2', 1]
 		];
 		const r = aggregateDnsInsights(rows, {});
 		expect(r.total).toBe(3);

@@ -4,7 +4,7 @@ import path from 'node:path';
 /**
  * Check anti-secretos (CI):
  * - Evita commitear `.env` y tokens/keys típicos.
- * - Bloquea IPs privadas hardcodeadas (192.168.x.x / 10.x.x.x / 172.16-31.x.x).
+ * - Bloquea IPs privadas hardcodeadas (RFC1918).
  *
  * Nota: permite `.env.example` y docs/ que contengan ejemplos genéricos.
  */
@@ -77,7 +77,7 @@ for (const f of files) {
 		}
 	}
 	if (PRIVATE_IP.test(content)) {
-		// permitimos docs que contengan "ej. 192.168..." en texto si quieres;
+		// permitimos docs que contengan ejemplos en texto si quieres;
 		// aquí lo marcamos igual, por seguridad.
 		problems.push(`IP privada hardcodeada: ${path.relative(ROOT, f)}`);
 	}

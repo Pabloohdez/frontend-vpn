@@ -57,7 +57,7 @@ export function isAuthConfigured() {
 
 /**
  * Cookie `Secure` solo si está explícito o la URL es HTTPS real.
- * No usamos `X-Forwarded-Proto` por defecto: en LAN con HTTP (192.168.x.x) un proxy
+ * No usamos `X-Forwarded-Proto` por defecto: en LAN con HTTP (ej. 192.0.2.x) un proxy
  * que envía `https` haría que el navegador rechace la cookie y el login fallaría.
  */
 export function shouldUseSecureCookies(request: Request): boolean {

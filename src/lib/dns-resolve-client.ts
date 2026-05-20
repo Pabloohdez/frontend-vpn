@@ -73,7 +73,7 @@ export function extractClientIpv4(raw: string): string | null {
 	return m?.[1] ?? null;
 }
 
-/** Busca en el log DNS cargado una IPv4 del mismo cliente (p. ej. otra fila con `192.168.x.x (nombre.lan)`). */
+/** Busca en el log DNS cargado una IPv4 del mismo cliente (p. ej. otra fila con `192.0.2.x (nombre.lan)`). */
 export function resolveIpFromDnsQueries(
 	clientRaw: string,
 	rows: ReadonlyArray<readonly [number, string, string, string, ...unknown[]]>

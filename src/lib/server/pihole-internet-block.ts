@@ -186,7 +186,7 @@ export async function blockInternetForIp(
 			message:
 				opts.clientRaw?.trim() ?
 					'No se pudo obtener una IPv4 para este cliente. Espera otra consulta DNS o revisa dispositivos en el router.'
-				:	'Solo se admite IPv4 del dispositivo (ej. 192.168.1.50)'
+				:	'Solo se admite IPv4 del dispositivo (ej. 192.0.2.50)'
 		};
 	}
 

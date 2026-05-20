@@ -26,7 +26,7 @@ const config = {
 				'form-action': ['self'],
 				'base-uri': ['self'],
 				'object-src': ['none'],
-				'upgrade-insecure-requests': true
+				// No forzamos upgrade-insecure-requests: en LAN con HTTP rompería la carga de assets (CSS/JS).
 			}
 		}
 	},

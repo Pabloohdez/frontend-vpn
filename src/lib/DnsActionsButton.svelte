@@ -296,7 +296,7 @@
 								class="input mono"
 								type="text"
 								inputmode="decimal"
-								placeholder="ej. 192.168.1.87"
+								placeholder="ej. 192.0.2.87"
 								bind:value={manualIp}
 							/>
 						</label>
