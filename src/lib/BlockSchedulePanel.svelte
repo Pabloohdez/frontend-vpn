@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { t } from '$lib/i18n/locale.svelte';
 	import { csrfHeaders } from '$lib/csrf-client';
+	import { describeApiFailure } from '$lib/api-errors';
 
 	type Schedule = {
 		id: string;
@@ -23,6 +24,8 @@
 	let loading = $state(true);
 	let saving = $state(false);
 	let showForm = $state(false);
+	let loadError = $state<string | null>(null);
+	let formError = $state<string | null>(null);
 
 	let formIp = $state('');
 	let formLabel = $state('');
@@ -46,10 +49,16 @@
 
 	async function load() {
 		loading = true;
+		loadError = null;
 		const res = await fetch('/api/admin/block-schedules', { headers: { 'cache-control': 'no-cache' } });
 		if (res.ok) {
 			const j = await res.json();
 			schedules = j.schedules ?? [];
+		} else {
+			const body = await res.json().catch(() => null);
+			const fail = describeApiFailure(res.status, body, 'No se pudieron cargar los horarios.');
+			loadError = fail.message;
+			schedules = [];
 		}
 		loading = false;
 	}
@@ -57,6 +66,7 @@
 	async function save() {
 		if (!isAdmin || saving || !formIp.trim()) return;
 		saving = true;
+		formError = null;
 		const res = await fetch('/api/admin/block-schedules', {
 			method: 'POST',
 			headers: { 'content-type': 'application/json', ...csrfHeaders() },
@@ -72,7 +82,8 @@
 		const j = await res.json().catch(() => ({}));
 		saving = false;
 		if (!res.ok) {
-			alert(j.message ?? `Error ${res.status}`);
+			const fail = describeApiFailure(res.status, j, 'No se pudo guardar el horario.');
+			formError = fail.message;
 			return;
 		}
 		showForm = false;
@@ -81,10 +92,17 @@
 
 	async function remove(id: string) {
 		if (!isAdmin || !confirm('¿Eliminar este horario?')) return;
-		await fetch(`/api/admin/block-schedules?id=${encodeURIComponent(id)}`, {
+		formError = null;
+		const res = await fetch(`/api/admin/block-schedules?id=${encodeURIComponent(id)}`, {
 			method: 'DELETE',
 			headers: { ...csrfHeaders() }
 		});
+		if (!res.ok) {
+			const body = await res.json().catch(() => null);
+			const fail = describeApiFailure(res.status, body, 'No se pudo eliminar el horario.');
+			formError = fail.message;
+			return;
+		}
 		await load();
 	}
 
@@ -99,6 +117,14 @@
 				{showForm ? '✕' : t('schedules.add')}
 			</button>
 		</div>
+
+		{#if loadError}
+			<p class="blockSched__error" role="alert">{loadError}</p>
+		{/if}
+
+		{#if formError}
+			<p class="blockSched__error" role="alert">{formError}</p>
+		{/if}
 
 		{#if showForm}
 			<form class="blockSched__form" onsubmit={(e) => { e.preventDefault(); save(); }}>
@@ -145,7 +171,7 @@
 
 		{#if loading}
 			<p class="muted">{t('common.loading')}</p>
-		{:else if schedules.length === 0}
+		{:else if schedules.length === 0 && !loadError}
 			<p class="muted">{t('schedules.empty')}</p>
 		{:else}
 			<ul class="blockSched__list">
@@ -173,6 +199,12 @@
 {/if}
 
 <style>
+	.blockSched__error {
+		margin: 0 0 10px;
+		font-size: 12px;
+		color: var(--danger, #c44);
+		line-height: 1.45;
+	}
 	.blockSched__head {
 		display: flex;
 		justify-content: space-between;

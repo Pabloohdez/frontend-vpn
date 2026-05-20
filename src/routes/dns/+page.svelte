@@ -21,8 +21,8 @@
 	import DnsReportExport from '$lib/DnsReportExport.svelte';
 	import SavedFiltersBar from '$lib/SavedFiltersBar.svelte';
 	import AuthGate from '$lib/AuthGate.svelte';
-	import { isUnauthorizedStatus, unauthorizedMessage } from '$lib/auth-client';
 	import { describeApiFailure } from '$lib/api-errors';
+	import { csrfHeaders } from '$lib/csrf-client';
 
 	type DnsFilterState = {
 		q: string;
@@ -173,7 +173,7 @@
 		else setDomainBusy(key, mode === 'wildcard' ? { allowWild: true } : { allow: true });
 		const res = await fetch('/api/admin/pihole/domain', {
 			method: 'POST',
-			headers: { 'content-type': 'application/json' },
+			headers: { 'content-type': 'application/json', ...csrfHeaders() },
 			body: JSON.stringify({ domain, list, op: 'add', mode })
 		});
 		if (!res.ok) {
@@ -204,7 +204,7 @@
 		else setDomainBusy(key, mode === 'wildcard' ? { unallowWild: true } : { unallow: true });
 		const res = await fetch('/api/admin/pihole/domain', {
 			method: 'POST',
-			headers: { 'content-type': 'application/json' },
+			headers: { 'content-type': 'application/json', ...csrfHeaders() },
 			body: JSON.stringify({ domain, list, op: 'remove', mode })
 		});
 		if (!res.ok) {
@@ -686,13 +686,14 @@
 		});
 
 		if (!dnsRes.ok) {
-			const body = await dnsRes.json().catch(() => null) as { message?: string } | null;
-			needsAuth = isUnauthorizedStatus(dnsRes.status);
-			error = needsAuth
-				? unauthorizedMessage(dnsRes.status)
-				: dnsRes.status === 502
-					? (body?.message ?? 'Pi-hole no respondió')
-					: `Error ${dnsRes.status}`;
+			const body = await dnsRes.json().catch(() => null);
+			const fail = describeApiFailure(
+				dnsRes.status,
+				body,
+				dnsRes.status === 502 ? 'Pi-hole no respondió' : 'No se pudieron cargar las consultas DNS.'
+			);
+			needsAuth = fail.needsAuth;
+			error = fail.message;
 			queries = [];
 			loading = false;
 			return;
@@ -912,7 +913,7 @@
 	</section>
 
 	{#if needsAuth}
-		<AuthGate message={error ?? undefined} />
+		<AuthGate message={error ?? undefined} nextPath="/dns" />
 	{:else if error}
 		<section class="panel cardError">{error}</section>
 	{:else if loading}

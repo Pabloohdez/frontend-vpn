@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { logoutAndGoHome } from '$lib/logout-client';
 	import { csrfHeaders } from '$lib/csrf-client';
+	import { apiErrorMessage, describeFetchResponse } from '$lib/api-errors';
 	import './page.css';
 
 	let auth = $state<{
@@ -28,9 +29,7 @@
 			totp = s && s.ok ? await s.json() : null;
 		}
 		// categorías (admin/operator/auditor pueden ver; editar se limita en API)
-		const c = await fetch('/api/admin/categories', { headers: { 'cache-control': 'no-cache' } }).catch(() => null);
-		if (c && c.ok) cats = await c.json();
-		else catsError = c ? `Error ${c.status}` : 'No se pudo cargar categorías';
+		await loadCategories();
 	});
 
 	async function logout() {
@@ -40,6 +39,23 @@
 		await logoutAndGoHome();
 	}
 
+	async function loadCategories() {
+		catsError = null;
+		const c = await fetch('/api/admin/categories', { headers: { 'cache-control': 'no-cache' } }).catch(() => null);
+		if (!c) {
+			catsError = 'No se pudo cargar categorías';
+			cats = null;
+			return;
+		}
+		if (!c.ok) {
+			const fail = await describeFetchResponse(c, 'No se pudo cargar categorías.');
+			catsError = fail.message;
+			cats = null;
+			return;
+		}
+		cats = await c.json();
+	}
+
 	async function downloadBackup() {
 		if (downloadingBackup) return;
 		downloadingBackup = true;
@@ -47,8 +63,8 @@
 		try {
 			const res = await fetch('/api/admin/backup', { headers: { 'cache-control': 'no-cache' } });
 			if (!res.ok) {
-				const j = await res.json().catch(() => null);
-				backupError = j?.message ?? `Error ${res.status}`;
+				const fail = await describeFetchResponse(res, 'No se pudo generar el backup.');
+				backupError = fail.message;
 				downloadingBackup = false;
 				return;
 			}
@@ -79,7 +95,7 @@
 			const res = await fetch('/api/admin/2fa/setup', { headers: { 'cache-control': 'no-cache' } });
 			const j = await res.json().catch(() => null);
 			if (!res.ok) {
-				totpError = j?.error ?? `Error ${res.status}`;
+				totpError = apiErrorMessage(res.status, j, 'No se pudo iniciar la configuración 2FA.');
 				return;
 			}
 			totpSetup = { qr_svg: j.qr_svg, recovery_codes: j.recovery_codes };
@@ -102,7 +118,7 @@
 			});
 			const j = await res.json().catch(() => null);
 			if (!res.ok) {
-				totpError = j?.error ?? `Error ${res.status}`;
+				totpError = apiErrorMessage(res.status, j, 'No se pudo activar 2FA.');
 				return;
 			}
 			totp = j.status;
@@ -127,12 +143,11 @@
 		});
 		const j = await res.json().catch(() => null);
 		if (!res.ok) {
-			catsError = j?.error ?? `Error ${res.status}`;
+			catsError = apiErrorMessage(res.status, j, 'No se pudieron guardar los dominios.');
 			return;
 		}
-		// recarga
-		const c = await fetch('/api/admin/categories', { headers: { 'cache-control': 'no-cache' } }).catch(() => null);
-		if (c && c.ok) cats = await c.json();
+		catsError = null;
+		await loadCategories();
 	}
 
 	const envGroups = [
@@ -261,7 +276,7 @@
 				</div>
 			{/if}
 			{#if totpError}
-				<p class="muted" style="margin-top:8px">{totpError}</p>
+				<p class="settingsErr" role="alert">{totpError}</p>
 			{/if}
 		{/if}
 	</section>
@@ -277,7 +292,7 @@
 				{downloadingBackup ? 'Generando…' : 'Descargar backup (.json)'}
 			</button>
 			{#if backupError}
-				<p class="muted" style="margin-top:8px">{backupError}</p>
+				<p class="settingsErr" role="alert">{backupError}</p>
 			{/if}
 		{:else}
 			<p class="muted">Solo el rol admin puede descargar backups.</p>
@@ -290,7 +305,7 @@
 			Define dominios por categoría. Los horarios por dispositivo se aplican asignando grupos <code class="mono">panel-cat-*</code> en Pi-hole v6.
 		</p>
 		{#if catsError}
-			<p class="muted">{catsError}</p>
+			<p class="settingsErr" role="alert">{catsError}</p>
 		{/if}
 		{#if cats === null}
 			<p class="muted">Cargando…</p>

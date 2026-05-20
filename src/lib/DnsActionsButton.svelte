@@ -2,7 +2,8 @@
 	import type { PiholeLists } from '$lib/pihole-lists';
 	import { isApplied as isAppliedShared } from '$lib/pihole-lists';
 	import { csrfHeaders } from '$lib/csrf-client';
-	import { describeApiFailure } from '$lib/api-errors';
+	import { apiErrorMessage } from '$lib/api-errors';
+	import { toast } from '$lib/toast.svelte';
 
 	type Busy = {
 		block?: boolean;
@@ -173,8 +174,9 @@
 			localBlocked = op === 'block';
 			onInternetChange?.();
 		} else {
-			const fail = describeApiFailure(res.status, j, 'No se pudo cambiar el bloqueo de internet.');
-			alert(fail.message);
+			toast.error(apiErrorMessage(res.status, j, 'No se pudo cambiar el bloqueo de internet.'), {
+				ttl: res.status === 429 ? 10_000 : 7000
+			});
 		}
 		netBusy = false;
 	}

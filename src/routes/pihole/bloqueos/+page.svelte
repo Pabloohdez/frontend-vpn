@@ -3,7 +3,8 @@
 	import BlockSchedulePanel from '$lib/BlockSchedulePanel.svelte';
 	import { csrfHeaders } from '$lib/csrf-client';
 	import AuthGate from '$lib/AuthGate.svelte';
-	import { isUnauthorizedStatus, unauthorizedMessage } from '$lib/auth-client';
+	import { apiErrorMessage, describeFetchResponse } from '$lib/api-errors';
+	import { toast } from '$lib/toast.svelte';
 	import './page.css';
 
 	type Device = {
@@ -102,10 +103,9 @@
 			isAdmin = Boolean(me?.isAdmin);
 		}
 		if (!devRes.ok) {
-			needsAuth = isUnauthorizedStatus(devRes.status);
-			error = needsAuth
-				? unauthorizedMessage(devRes.status)
-				: `Error al cargar dispositivos (${devRes.status})`;
+			const fail = await describeFetchResponse(devRes, 'No se pudo cargar los dispositivos.');
+			needsAuth = fail.needsAuth;
+			error = fail.message;
 			devices = [];
 			loading = false;
 			return;
@@ -139,8 +139,11 @@
 		});
 		const j = await res.json().catch(() => ({}));
 		if (!res.ok || !j.ok) {
-			alert(j.message ?? `Error ${res.status}`);
+			toast.error(apiErrorMessage(res.status, j, 'No se pudo cambiar el bloqueo de internet.'), {
+				ttl: res.status === 429 ? 10_000 : 7000
+			});
 		} else {
+			toast.success(op === 'block' ? `Internet cortado: ${d.label}` : `Internet restaurado: ${d.label}`);
 			await load();
 		}
 		busyIp = null;
@@ -166,7 +169,7 @@
 	</header>
 
 	{#if needsAuth}
-		<AuthGate message={error ?? undefined} />
+		<AuthGate message={error ?? undefined} nextPath="/pihole/bloqueos" />
 	{:else if error}
 		<section class="panel cardError">{error}</section>
 	{:else}

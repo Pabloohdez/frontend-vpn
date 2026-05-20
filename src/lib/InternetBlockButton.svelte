@@ -1,4 +1,8 @@
 <script lang="ts">
+	import { csrfHeaders } from '$lib/csrf-client';
+	import { apiErrorMessage } from '$lib/api-errors';
+	import { toast } from '$lib/toast.svelte';
+
 	type Props = {
 		ip: string;
 		label?: string | null;
@@ -41,15 +45,18 @@
 		}
 		const res = await fetch('/api/admin/internet-block', {
 			method: 'POST',
-			headers: { 'content-type': 'application/json' },
+			headers: { 'content-type': 'application/json', ...csrfHeaders() },
 			body: JSON.stringify({ ip, op, label, cn })
 		});
 		const j = await res.json().catch(() => ({}));
 		if (res.ok && j.ok) {
 			localBlocked = op === 'block';
 			onchange?.();
+			toast.success(op === 'block' ? `Internet cortado (${ip})` : `Internet restaurado (${ip})`);
 		} else {
-			alert(j.message ?? `Error ${res.status}`);
+			toast.error(apiErrorMessage(res.status, j, 'No se pudo cambiar el bloqueo de internet.'), {
+				ttl: res.status === 429 ? 10_000 : 7000
+			});
 		}
 		busy = false;
 	}

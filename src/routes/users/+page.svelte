@@ -3,7 +3,7 @@
 	import './page.css';
 	import { csrfHeaders } from '$lib/csrf-client';
 	import AuthGate from '$lib/AuthGate.svelte';
-	import { isUnauthorizedStatus, unauthorizedMessage } from '$lib/auth-client';
+	import { describeApiFailure, describeFetchResponse, noticeTtl } from '$lib/api-errors';
 
 	type UserRow = { status: string; name: string; expiration?: string };
 
@@ -145,8 +145,9 @@
 			fetch('/api/admin/revoked-hidden', { headers: { 'cache-control': 'no-cache' } })
 		]);
 		if (!usersRes.ok) {
-			needsAuth = isUnauthorizedStatus(usersRes.status);
-			usersError = needsAuth ? unauthorizedMessage(usersRes.status) : `Error ${usersRes.status}`;
+			const fail = await describeFetchResponse(usersRes, 'No se pudo cargar la lista de usuarios.');
+			needsAuth = fail.needsAuth;
+			usersError = fail.message;
 			users = [];
 			aliases = {};
 			hiddenRevoked = new Set();
@@ -176,7 +177,9 @@
 			headers: { ...csrfHeaders() }
 		});
 		if (!res.ok) {
-			pushNotice('error', `No se pudo revocar a ${cn} (HTTP ${res.status})`, 6500);
+			const body = await res.json().catch(() => null);
+			const fail = describeApiFailure(res.status, body, `No se pudo revocar a ${cn}.`);
+			pushNotice('error', fail.message, noticeTtl(fail));
 			setBusy(cn, { revoking: false });
 			return;
 		}
@@ -200,7 +203,9 @@
 			body: JSON.stringify({ cn })
 		});
 		if (!res.ok) {
-			pushNotice('error', `No se pudo ocultar ${cn} (HTTP ${res.status})`, 6500);
+			const body = await res.json().catch(() => null);
+			const fail = describeApiFailure(res.status, body, `No se pudo ocultar ${cn}.`);
+			pushNotice('error', fail.message, noticeTtl(fail));
 			setBusy(cn, { hide: false });
 			return;
 		}
@@ -217,7 +222,9 @@
 			body: JSON.stringify({ cn })
 		});
 		if (!res.ok) {
-			pushNotice('error', `No se pudo restaurar en la tabla: ${cn} (HTTP ${res.status})`, 6500);
+			const body = await res.json().catch(() => null);
+			const fail = describeApiFailure(res.status, body, `No se pudo restaurar ${cn} en la tabla.`);
+			pushNotice('error', fail.message, noticeTtl(fail));
 			setBusy(cn, { unhide: false });
 			return;
 		}
@@ -242,8 +249,8 @@
 			body: JSON.stringify({ cn, days_valid: days })
 		});
 		if (!res.ok) {
-			const body = await res.text().catch(() => '');
-			pushNotice('error', `No se pudo crear/renovar ${cn} (HTTP ${res.status}) ${body}`, 9000);
+			const fail = await describeFetchResponse(res, `No se pudo crear o renovar ${cn}.`);
+			pushNotice('error', fail.message, noticeTtl(fail, 9000));
 			creating = false;
 			return;
 		}
@@ -274,36 +281,13 @@
 		setBusy(cn, { bundle: true });
 		const res = await fetch(`/api/admin/bundle?cn=${encodeURIComponent(cn)}`);
 		if (!res.ok) {
-			const body = await res.text().catch(() => '');
-			let msg = '';
-			try {
-				const j = JSON.parse(body) as {
-					hint?: string;
-					message?: string;
-					detail?: string;
-					error?: string;
-					upstream_status?: number;
-				};
-				const pieces = [j.hint, j.message, j.detail]
-					.filter((x): x is string => typeof x === 'string' && x.length > 0);
-				if (j.error && j.error !== 'upstream_error') pieces.push(j.error);
-				msg = pieces.join(' — ');
-				if (typeof j.upstream_status === 'number') {
-					msg = msg
-						? `${msg} (respuesta VM1: HTTP ${j.upstream_status})`
-						: `VM1 respondió HTTP ${j.upstream_status}`;
-				}
-			} catch {
-				const t = body.trim();
-				if (t) msg = t.slice(0, 500);
-			}
-			if (!msg) {
-				msg =
-					res.status === 502
-						? `No se pudo obtener el bundle para ${cn}. Revisa la API en VM1.`
-						: `Error HTTP ${res.status} al descargar ${cn}.`;
-			}
-			pushNotice('error', msg, 11000);
+			const fail = await describeFetchResponse(
+				res,
+				res.status === 502
+					? `No se pudo obtener el bundle para ${cn}. Revisa la API en VM1.`
+					: `No se pudo descargar el perfil de ${cn}.`
+			);
+			pushNotice('error', fail.message, noticeTtl(fail, 11_000));
 			setBusy(cn, { bundle: false });
 			return;
 		}
@@ -350,7 +334,9 @@
 			body: JSON.stringify({ cn, alias: alias || null })
 		});
 		if (!res.ok) {
-			pushNotice('error', `No se pudo guardar el nombre visible (HTTP ${res.status})`, 6500);
+			const body = await res.json().catch(() => null);
+			const fail = describeApiFailure(res.status, body, 'No se pudo guardar el nombre visible.');
+			pushNotice('error', fail.message, noticeTtl(fail));
 			setBusy(cn, { alias: false });
 			return;
 		}
@@ -427,7 +413,10 @@
 				disabled={creating}
 				onclick={() => {
 					const cn = newCn.trim();
-					if (!cn) return alert('CN vacío');
+					if (!cn) {
+						pushNotice('error', 'CN vacío');
+						return;
+					}
 					createAndDownload(cn, newDays);
 				}}
 			>
@@ -500,7 +489,7 @@
 		</div>
 
 		{#if needsAuth}
-			<AuthGate message={usersError ?? undefined} />
+			<AuthGate message={usersError ?? undefined} nextPath="/users" />
 		{:else if usersError}
 			<div class="panel cardError">{usersError}</div>
 		{:else if usersLoading}

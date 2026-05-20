@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	import { logoutAndGoHome } from '$lib/logout-client';
+	import { csrfHeaders } from '$lib/csrf-client';
+	import { apiErrorMessage, describeFetchResponse } from '$lib/api-errors';
 	import InternetBlockButton from '$lib/InternetBlockButton.svelte';
 	import '../../routes/dashboard.css';
 
@@ -203,7 +205,8 @@
 			headers: { 'cache-control': 'no-cache' }
 		});
 		if (!res.ok) {
-			pushNotice('error', 'No se pudo revelar la IP');
+			const body = await res.json().catch(() => null);
+			pushNotice('error', apiErrorMessage(res.status, body, 'No se pudo revelar la IP.'));
 			return;
 		}
 		const newStatus: VpnStatus = await res.json();
@@ -220,10 +223,13 @@
 	async function kick(cn: string) {
 		const res = await fetch('/api/admin/kick', {
 			method: 'POST',
-			headers: { 'content-type': 'application/json' },
+			headers: { 'content-type': 'application/json', ...csrfHeaders() },
 			body: JSON.stringify({ cn })
 		});
-		if (!res.ok) pushNotice('error', `No se pudo echar a ${cn}`);
+		if (!res.ok) {
+			const body = await res.json().catch(() => null);
+			pushNotice('error', apiErrorMessage(res.status, body, `No se pudo echar a ${cn}.`));
+		}
 		else {
 			pushNotice('ok', `Echado: ${cn}`);
 			refresh();
@@ -231,8 +237,14 @@
 	}
 
 	async function revoke(cn: string) {
-		const res = await fetch(`/api/admin/users?cn=${encodeURIComponent(cn)}`, { method: 'DELETE' });
-		if (!res.ok) pushNotice('error', `No se pudo revocar a ${cn}`);
+		const res = await fetch(`/api/admin/users?cn=${encodeURIComponent(cn)}`, {
+			method: 'DELETE',
+			headers: { ...csrfHeaders() }
+		});
+		if (!res.ok) {
+			const body = await res.json().catch(() => null);
+			pushNotice('error', apiErrorMessage(res.status, body, `No se pudo revocar a ${cn}.`));
+		}
 		else {
 			pushNotice('ok', `Revocado: ${cn}`);
 			loadUsers();
@@ -243,7 +255,8 @@
 	async function downloadBundle(cn: string) {
 		const res = await fetch(`/api/admin/bundle?cn=${encodeURIComponent(cn)}`);
 		if (!res.ok) {
-			pushNotice('error', `No se pudo descargar el bundle de ${cn}`, 8000);
+			const fail = await describeFetchResponse(res, `No se pudo descargar el bundle de ${cn}.`);
+			pushNotice('error', fail.message, fail.rateLimited ? 10_000 : 8000);
 			return;
 		}
 		const blob = await res.blob();

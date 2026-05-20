@@ -6,7 +6,7 @@
 	import Skeleton from '$lib/Skeleton.svelte';
 	import EmptyState from '$lib/EmptyState.svelte';
 	import AuthGate from '$lib/AuthGate.svelte';
-	import { isUnauthorizedStatus, unauthorizedMessage } from '$lib/auth-client';
+	import { describeFetchResponse } from '$lib/api-errors';
 	import { t } from '$lib/i18n/locale.svelte';
 	import './page.css';
 
@@ -55,8 +55,9 @@
 				headers: { 'cache-control': 'no-cache' }
 			});
 			if (!res.ok) {
-				needsAuth = isUnauthorizedStatus(res.status);
-				error = needsAuth ? unauthorizedMessage(res.status) : `Error ${res.status}`;
+				const fail = await describeFetchResponse(res, 'No se pudo cargar el dashboard.');
+				needsAuth = fail.needsAuth;
+				error = fail.message;
 				data = null;
 			} else {
 				data = (await res.json()) as Payload;
@@ -122,7 +123,7 @@
 	</header>
 
 	{#if needsAuth}
-		<AuthGate message={error ?? undefined} />
+		<AuthGate message={error ?? undefined} nextPath="/dashboard" />
 	{:else if error}
 		<section class="panel cardError">{error}</section>
 	{:else if loading && !data}

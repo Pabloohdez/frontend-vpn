@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import AuthGate from '$lib/AuthGate.svelte';
-	import { isUnauthorizedStatus, unauthorizedMessage } from '$lib/auth-client';
+	import { describeFetchResponse } from '$lib/api-errors';
 	import './page.css';
 
 	type DnsInsights = {
@@ -101,8 +101,9 @@
 			headers: { 'cache-control': 'no-cache' }
 		});
 		if (!res.ok) {
-			needsAuth = isUnauthorizedStatus(res.status);
-			error = needsAuth ? unauthorizedMessage(res.status) : `Error ${res.status}`;
+			const fail = await describeFetchResponse(res, 'No se pudieron cargar las métricas de seguridad.');
+			needsAuth = fail.needsAuth;
+			error = fail.message;
 			data = null;
 			loading = false;
 			return;
@@ -143,7 +144,7 @@
 	</header>
 
 	{#if needsAuth}
-		<AuthGate message={error ?? undefined} />
+		<AuthGate message={error ?? undefined} nextPath="/seguridad" />
 	{:else if error}
 		<section class="panel cardError">{error}</section>
 	{:else if loading && !data}

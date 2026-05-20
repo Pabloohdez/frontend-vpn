@@ -1,10 +1,24 @@
-import { isUnauthorizedStatus, unauthorizedMessage } from '$lib/auth-client';
+import { unauthorizedMessage } from '$lib/auth-client';
 
 export type ApiFailure = {
 	needsAuth: boolean;
 	rateLimited: boolean;
 	retryAfterSec: number | null;
 	message: string;
+};
+
+/** Códigos `error` habituales de la API → mensaje en español. */
+const KNOWN_API_ERRORS: Record<string, string> = {
+	totp_required: '2FA requerido: introduce el código TOTP o un recovery code.',
+	invalid_credentials: 'Credenciales inválidas',
+	invalid_code: 'Código TOTP incorrecto. Comprueba la hora del móvil.',
+	already_enabled: 'El 2FA ya está activo en esta cuenta.',
+	unauthorized: 'No autorizado. Inicia sesión con un rol con permisos.',
+	misconfigured: 'El servidor no está configurado (revisa el .env).',
+	bad_request: 'Petición inválida.',
+	csrf_invalid: 'Petición rechazada (CSRF). Recarga la página e inténtalo de nuevo.',
+	rate_limited: 'Demasiadas peticiones.',
+	locked: 'Demasiados intentos fallidos.'
 };
 
 function retryAfterSecFrom(
@@ -31,13 +45,36 @@ export function describeApiFailure(
 	const rec =
 		body && typeof body === 'object' && !Array.isArray(body) ? (body as Record<string, unknown>) : null;
 
-	const needsAuth = isUnauthorizedStatus(status);
-	if (needsAuth) {
+	const bodyMsg = typeof rec?.message === 'string' ? rec.message : '';
+
+	if (status === 401) {
 		return {
 			needsAuth: true,
 			rateLimited: false,
 			retryAfterSec: null,
-			message: unauthorizedMessage(status)
+			message: unauthorizedMessage(401)
+		};
+	}
+
+	if (
+		rec?.error === 'csrf_invalid' ||
+		(status === 403 && /csrf/i.test(bodyMsg))
+	) {
+		return {
+			needsAuth: false,
+			rateLimited: false,
+			retryAfterSec: null,
+			message: KNOWN_API_ERRORS.csrf_invalid
+		};
+	}
+
+	if (status === 403) {
+		const needsAuth = rec?.error === 'unauthorized';
+		return {
+			needsAuth,
+			rateLimited: false,
+			retryAfterSec: null,
+			message: unauthorizedMessage(403)
 		};
 	}
 
@@ -59,20 +96,23 @@ export function describeApiFailure(
 		};
 	}
 
-	if (rec?.error === 'csrf_invalid' || status === 403) {
-		return {
-			needsAuth: false,
-			rateLimited: false,
-			retryAfterSec: null,
-			message: 'Petición rechazada (CSRF). Recarga la página e inténtalo de nuevo.'
-		};
-	}
+	const knownCode =
+		typeof rec?.error === 'string' && rec.error in KNOWN_API_ERRORS
+			? KNOWN_API_ERRORS[rec.error]
+			: null;
 
-	const msg =
-		(typeof rec?.message === 'string' && rec.message) ||
-		(typeof rec?.hint === 'string' && rec.hint) ||
-		(typeof rec?.error === 'string' && rec.error !== 'upstream_error' ? String(rec.error) : '') ||
-		fallback;
+	const pieces = [
+		typeof rec?.hint === 'string' ? rec.hint : '',
+		typeof rec?.message === 'string' ? rec.message : '',
+		typeof rec?.detail === 'string' ? rec.detail : '',
+		rec?.error && typeof rec.error === 'string' && rec.error !== 'upstream_error' ? String(rec.error) : ''
+	].filter((x) => x.length > 0);
+	let msg = knownCode || pieces.join(' — ') || fallback;
+	if (typeof rec?.upstream_status === 'number') {
+		msg = msg.includes('VM1') || msg.includes('upstream')
+			? msg
+			: `${msg} (respuesta VM1: HTTP ${rec.upstream_status})`;
+	}
 
 	return {
 		needsAuth: false,
@@ -137,4 +177,18 @@ export function loginErrorMessage(status: number, body: unknown): string {
 		return 'Credenciales inválidas';
 	}
 	return describeApiFailure(status, body, 'Credenciales inválidas').message;
+}
+
+/** TTL sugerido para toasts según tipo de error. */
+export function noticeTtl(fail: ApiFailure, defaultMs = 6500): number {
+	return fail.rateLimited ? 10_000 : defaultMs;
+}
+
+/** Mensaje corto para toasts / avisos inline (misma lógica que describeApiFailure). */
+export function apiErrorMessage(
+	status: number,
+	body: unknown,
+	fallback = 'La operación no se pudo completar.'
+): string {
+	return describeApiFailure(status, body, fallback).message;
 }

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
 	import AuthGate from '$lib/AuthGate.svelte';
-	import { isUnauthorizedStatus, unauthorizedMessage } from '$lib/auth-client';
+	import { describeFetchResponse } from '$lib/api-errors';
 	import './page.css';
 
 	type Row = {
@@ -62,8 +62,9 @@
 		if (ok) q.set('ok', ok);
 		const res = await fetch(`/api/admin/audit?${q.toString()}`);
 		if (!res.ok) {
-			needsAuth = isUnauthorizedStatus(res.status);
-			error = needsAuth ? unauthorizedMessage(res.status) : `Error ${res.status}`;
+			const fail = await describeFetchResponse(res, 'No se pudo cargar la auditoría.');
+			needsAuth = fail.needsAuth;
+			error = fail.message;
 			rows = [];
 			loading = false;
 			return;
@@ -264,7 +265,7 @@
 	</section>
 
 	{#if needsAuth}
-		<AuthGate message={error ?? undefined} />
+		<AuthGate message={error ?? undefined} nextPath="/audit" />
 	{:else if error}
 		<section class="panel cardError">{error}</section>
 	{:else if loading}

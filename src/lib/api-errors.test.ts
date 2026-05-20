@@ -8,6 +8,12 @@ describe('describeApiFailure', () => {
 		expect(f.message).toMatch(/sesión/i);
 	});
 
+	it('403 CSRF no pide login', () => {
+		const f = describeApiFailure(403, { message: 'CSRF inválido' });
+		expect(f.needsAuth).toBe(false);
+		expect(f.message).toMatch(/CSRF/i);
+	});
+
 	it('formatea rate_limited con segundos', () => {
 		const f = describeApiFailure(429, { error: 'rate_limited', retryAfterSec: 42 });
 		expect(f.rateLimited).toBe(true);
@@ -18,5 +24,15 @@ describe('describeApiFailure', () => {
 	it('formatea locked en login', () => {
 		const msg = loginErrorMessage(429, { error: 'locked', retryAfterSec: 120 });
 		expect(msg).toMatch(/120/);
+	});
+
+	it('incluye hint y upstream_status', () => {
+		const f = describeApiFailure(502, {
+			hint: 'Revisa VM1',
+			message: 'Bundle no disponible',
+			upstream_status: 503
+		});
+		expect(f.message).toMatch(/Revisa VM1/);
+		expect(f.message).toMatch(/503/);
 	});
 });

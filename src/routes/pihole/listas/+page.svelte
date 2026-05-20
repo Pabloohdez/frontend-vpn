@@ -82,12 +82,14 @@
 		if (!res.ok) {
 			blocked = { exact: [], wildcard: [] };
 			allowed = { exact: [], wildcard: [] };
-			needsAuth = isUnauthorizedStatus(res.status);
-			listsError = needsAuth
-				? unauthorizedMessage(res.status)
-				: ((data as { message?: string } | null)?.message ??
-					`No se pudieron leer las listas de Pi-hole (HTTP ${res.status}). Revisa PIHOLE_BASE_URL y PIHOLE_API_TOKEN.`);
-			pushNotice('error', listsError, 10_000);
+			const fail = describeApiFailure(
+				res.status,
+				data,
+				'No se pudieron leer las listas de Pi-hole. Revisa PIHOLE_BASE_URL y PIHOLE_API_TOKEN.'
+			);
+			needsAuth = fail.needsAuth;
+			listsError = fail.message;
+			pushNotice('error', listsError, fail.rateLimited ? 10_000 : 9000);
 			listsLoading = false;
 			return;
 		}
@@ -234,7 +236,7 @@
 	{/if}
 
 	{#if needsAuth}
-		<AuthGate message={listsError ?? undefined} />
+		<AuthGate message={listsError ?? undefined} nextPath="/pihole/listas" />
 	{/if}
 
 	<header class="panelHero">
