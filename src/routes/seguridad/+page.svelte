@@ -50,6 +50,14 @@
 		dns: DnsInsights | null;
 		audit: AuditInsights;
 		anomalies?: DnsAnomaly[];
+		threats?: {
+			kind: 'tunneling_suspect' | 'txt_suspect';
+			client: string;
+			label: string | null;
+			domain: string;
+			score: number;
+			detail: string;
+		}[];
 		alerts?: SecurityAlert[];
 	};
 
@@ -153,6 +161,29 @@
 								</span>
 								·
 								<a href={`/dns?device_ip=${encodeURIComponent(a.client)}`}>Ver consultas</a>
+							</div>
+						</li>
+					{/each}
+				</ul>
+			</section>
+		{/if}
+
+		{#if data.threats && data.threats.length > 0}
+			<section class="panel secThreats" aria-label="Sospechas de DNS tunneling">
+				<h2 class="panel__h2">Sospechas (DNS tunneling)</h2>
+				<p class="muted secAnoms__hint">
+					Heurísticas: subdominios largos/alta entropía y consultas TXT inusuales. Revisa antes de actuar.
+				</p>
+				<ul class="secAnoms__list">
+					{#each data.threats as t (`${t.kind}-${t.client}-${t.domain}`)}
+						<li class="secAnom secAnom--{t.score >= 80 ? 'critical' : 'warn'}">
+							<div class="secAnom__head">
+								<strong class="secAnom__name">{t.label ?? t.client}</strong>
+								<span class="secAnom__mult mono">{t.kind === 'txt_suspect' ? 'TXT' : `score ${t.score}`}</span>
+							</div>
+							<div class="secAnom__meta muted">
+								<span class="mono">{t.domain}</span> · <span class="mono">{t.client}</span> ·
+								<a href={`/dns?device_ip=${encodeURIComponent(t.client)}`}>Ver consultas</a>
 							</div>
 						</li>
 					{/each}

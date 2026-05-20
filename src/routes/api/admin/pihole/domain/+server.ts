@@ -1,10 +1,12 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { isAdminFromRequestCookie } from '$lib/server/auth';
+import { requirePermissionFromRequestCookie } from '$lib/server/auth';
 import { fetchWithRetries } from '$lib/server/fetch-retry';
 import { piholeAdminApiUrl } from '$lib/server/pihole-list-fetch';
 import { assertPiholeConfigured, piholeApiToken } from '$lib/server/pihole';
 import { writeAudit } from '$lib/server/audit';
+import { rateLimitKey } from '$lib/server/rate-limit';
+import { writeCriticalAudit } from '$lib/server/audit-signed';
 
 export const prerender = false;
 
@@ -51,9 +53,24 @@ function wildcardRegexForDomain(domain: string) {
 	return `(^|\\.)${escapeRegex(domain)}$`;
 }
 
-export const POST: RequestHandler = async ({ request, fetch }) => {
-	if (!isAdminFromRequestCookie(request.headers.get('cookie'))) {
+export const POST: RequestHandler = async ({ request, fetch, getClientAddress }) => {
+	const authz = requirePermissionFromRequestCookie(request.headers.get('cookie'), 'pihole_write');
+	if (!authz.ok) {
 		return json({ error: 'unauthorized' }, { status: 401 });
+	}
+
+	const rl = rateLimitKey('admin:pihole_domain_write', getClientAddress(), {
+		windowMs: 60_000,
+		maxPerWindow: 20
+	});
+	if (!rl.ok) {
+		return json(
+			{ error: 'rate_limited', retryAfterSec: rl.retryAfterSec },
+			{
+				status: 429,
+				headers: { 'Retry-After': String(rl.retryAfterSec), 'cache-control': 'no-store' }
+			}
+		);
 	}
 
 	const cfg = assertPiholeConfigured();
@@ -118,6 +135,19 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
 			upstream_status: upstream.status
 		}
 	});
+	// Audit crítico firmado
+	try {
+		await writeCriticalAudit({
+			ts: new Date().toISOString(),
+			actor: 'admin',
+			action: 'pihole_list_change',
+			success: upstream.ok && piholeSuccess,
+			remote_ip: getClientAddress(),
+			details: { list, op, mode, domain, upstream_status: upstream.status }
+		});
+	} catch {
+		/* best-effort */
+	}
 
 	if (!upstream.ok) {
 		return json(

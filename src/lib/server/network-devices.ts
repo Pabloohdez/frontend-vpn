@@ -2,6 +2,7 @@ import { listInternetBlocks } from '$lib/server/internet-blocks-store';
 import { fetchNetmonitorIpMap, type NetmonitorDevice } from '$lib/server/netmonitor';
 import { extractFirstIpv4, readPrunedIpCnHistory } from '$lib/server/vpn-ipcn-history';
 import { assertVm1Configured, fetchVm1, vm1ApiKey, vm1BaseUrl } from '$lib/server/vm1';
+import { isScheduleBlockedRecord, SCHEDULE_BLOCKED_BY_PREFIX } from '$lib/server/block-schedules-store';
 
 export type NetworkDeviceRow = {
 	ip: string;
@@ -14,6 +15,8 @@ export type NetworkDeviceRow = {
 	blocked: boolean;
 	blocked_at: string | null;
 	blocked_by: string | null;
+	blocked_source: 'manual' | 'schedule' | null;
+	block_schedule_id: string | null;
 	vpn_cn: string | null;
 	vpn_connected: boolean;
 	in_netmonitor: boolean;
@@ -85,6 +88,9 @@ function rowFromNetmonitor(
 	vpn: { lan_to_cn: Map<string, string>; connected_lan: Set<string> }
 ): NetworkDeviceRow {
 	const cn = vpn.lan_to_cn.get(dev.ip) ?? null;
+	const isSched = block ? isScheduleBlockedRecord(block.blocked_by) : false;
+	const scheduleId =
+		block && isSched ? block.blocked_by.slice(SCHEDULE_BLOCKED_BY_PREFIX.length) : null;
 	return {
 		ip: dev.ip,
 		label: dev.label,
@@ -96,6 +102,8 @@ function rowFromNetmonitor(
 		blocked: Boolean(block),
 		blocked_at: block?.blocked_at ?? null,
 		blocked_by: block?.blocked_by ?? null,
+		blocked_source: block ? (isSched ? 'schedule' : 'manual') : null,
+		block_schedule_id: scheduleId,
 		vpn_cn: cn,
 		vpn_connected: vpn.connected_lan.has(dev.ip),
 		in_netmonitor: true
@@ -107,6 +115,8 @@ function rowFromBlock(
 	vpn: { lan_to_cn: Map<string, string>; connected_lan: Set<string> }
 ): NetworkDeviceRow {
 	const cn = vpn.lan_to_cn.get(block.ip) ?? null;
+	const isSched = isScheduleBlockedRecord(block.blocked_by);
+	const scheduleId = isSched ? block.blocked_by.slice(SCHEDULE_BLOCKED_BY_PREFIX.length) : null;
 	return {
 		ip: block.ip,
 		label: block.label?.trim() || block.ip,
@@ -118,6 +128,8 @@ function rowFromBlock(
 		blocked: true,
 		blocked_at: block.blocked_at,
 		blocked_by: block.blocked_by,
+		blocked_source: isSched ? 'schedule' : 'manual',
+		block_schedule_id: scheduleId,
 		vpn_cn: cn,
 		vpn_connected: vpn.connected_lan.has(block.ip),
 		in_netmonitor: false

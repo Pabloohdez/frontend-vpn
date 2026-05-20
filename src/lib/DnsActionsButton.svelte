@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PiholeLists } from '$lib/pihole-lists';
 	import { isApplied as isAppliedShared } from '$lib/pihole-lists';
+	import { csrfHeaders } from '$lib/csrf-client';
 
 	type Busy = {
 		block?: boolean;
@@ -157,7 +158,7 @@
 		netBusy = true;
 		const res = await fetch('/api/admin/internet-block', {
 			method: 'POST',
-			headers: { 'content-type': 'application/json' },
+			headers: { 'content-type': 'application/json', ...csrfHeaders() },
 			body: JSON.stringify({
 				ip: op === 'unblock' ? ip : ip || undefined,
 				client: piholeClient || undefined,

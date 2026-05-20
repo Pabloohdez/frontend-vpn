@@ -7,6 +7,7 @@ import {
 	shouldUseSecureCookies
 } from '$lib/server/auth';
 import { writeAudit } from '$lib/server/audit';
+import { accessCookieName, refreshCookieName, revokeSessionByRefresh } from '$lib/server/session-store';
 
 export const POST: RequestHandler = async ({ request, cookies, getClientAddress }) => {
 	const isAdmin = isAdminFromRequestCookie(request.headers.get('cookie'));
@@ -31,6 +32,13 @@ export const POST: RequestHandler = async ({ request, cookies, getClientAddress 
 		sameSite: 'lax',
 		secure: shouldUseSecureCookies(request)
 	});
+	// Nueva sesión: revoca refresh y borra cookies.
+	const refresh = cookies.get(refreshCookieName());
+	if (refresh) {
+		await revokeSessionByRefresh(refresh);
+	}
+	cookies.delete(accessCookieName(), { path: '/' });
+	cookies.delete(refreshCookieName(), { path: '/' });
 
 	return json({ ok: true }, { headers: { 'cache-control': 'no-store' } });
 };

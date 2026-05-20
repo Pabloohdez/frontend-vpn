@@ -7,6 +7,8 @@ import { mergeHostnameMapWithNetmonitor } from '$lib/server/device-resolve';
 import { fetchNetmonitorIpMap } from '$lib/server/netmonitor';
 import { assertPiholeConfigured } from '$lib/server/pihole';
 import { fetchPiholeHostnameToIpv4Map, fetchPiholeQueryLog } from '$lib/server/pihole-query-log';
+import { rateLimitKey } from '$lib/server/rate-limit';
+import { writeCriticalAudit } from '$lib/server/audit-signed';
 
 export const prerender = false;
 
@@ -15,6 +17,14 @@ const MAX_RANGE_SEC = 48 * 3600;
 export const GET: RequestHandler = async ({ request, fetch, url, getClientAddress, cookies }) => {
 	if (!isAuditorOrAdminFromRequestCookie(request.headers.get('cookie'))) {
 		return new Response('No autorizado', { status: 401 });
+	}
+
+	const rl = rateLimitKey('report:dns_pdf', getClientAddress(), { windowMs: 60_000, maxPerWindow: 10 });
+	if (!rl.ok) {
+		return new Response(`Rate limited. Retry after ${rl.retryAfterSec}s`, {
+			status: 429,
+			headers: { 'Retry-After': String(rl.retryAfterSec), 'cache-control': 'no-store' }
+		});
 	}
 
 	const cfg = assertPiholeConfigured();
@@ -75,6 +85,18 @@ export const GET: RequestHandler = async ({ request, fetch, url, getClientAddres
 			queries: rows.length
 		}
 	});
+	try {
+		await writeCriticalAudit({
+			ts: new Date().toISOString(),
+			actor: role,
+			action: 'dns_report_export',
+			success: true,
+			remote_ip: getClientAddress(),
+			details: { day, client_filter: clientFilter, devices: report.devices.length, queries: rows.length }
+		});
+	} catch {
+		/* best-effort */
+	}
 
 	return new Response(new Uint8Array(pdf), {
 		status: 200,

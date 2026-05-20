@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { logoutAndGoHome } from '$lib/logout-client';
+	import { csrfHeaders } from '$lib/csrf-client';
 	import './page.css';
 
 	let auth = $state<{
@@ -9,10 +10,27 @@
 		role?: string | null;
 	} | null>(null);
 	let loggingOut = $state(false);
+	let downloadingBackup = $state(false);
+	let backupError = $state<string | null>(null);
+	let totp = $state<{ enabled: boolean; created_at: string | null } | null>(null);
+	let totpSetup = $state<{ qr_svg: string; recovery_codes: string[] } | null>(null);
+	let totpCode = $state('');
+	let totpBusy = $state(false);
+	let totpError = $state<string | null>(null);
+	let cats = $state<{ categories: any[]; policies: any[] } | null>(null);
+	let catsError = $state<string | null>(null);
 
 	onMount(async () => {
 		const res = await fetch('/api/auth/me', { headers: { 'cache-control': 'no-cache' } });
 		auth = res.ok ? await res.json() : { configured: false, isAdmin: false };
+		if (auth?.isAdmin) {
+			const s = await fetch('/api/admin/2fa/status', { headers: { 'cache-control': 'no-cache' } }).catch(() => null);
+			totp = s && s.ok ? await s.json() : null;
+		}
+		// categorías (admin/operator/auditor pueden ver; editar se limita en API)
+		const c = await fetch('/api/admin/categories', { headers: { 'cache-control': 'no-cache' } }).catch(() => null);
+		if (c && c.ok) cats = await c.json();
+		else catsError = c ? `Error ${c.status}` : 'No se pudo cargar categorías';
 	});
 
 	async function logout() {
@@ -20,6 +38,101 @@
 		loggingOut = true;
 		auth = auth ? { ...auth, role: null, isAdmin: false } : auth;
 		await logoutAndGoHome();
+	}
+
+	async function downloadBackup() {
+		if (downloadingBackup) return;
+		downloadingBackup = true;
+		backupError = null;
+		try {
+			const res = await fetch('/api/admin/backup', { headers: { 'cache-control': 'no-cache' } });
+			if (!res.ok) {
+				const j = await res.json().catch(() => null);
+				backupError = j?.message ?? `Error ${res.status}`;
+				downloadingBackup = false;
+				return;
+			}
+			const blob = await res.blob();
+			const cd = res.headers.get('content-disposition') ?? '';
+			const match = /filename=\"?([^\";]+)\"?/i.exec(cd);
+			const filename = match?.[1] ?? 'panel-backup.json';
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = filename;
+			document.body.appendChild(a);
+			a.click();
+			a.remove();
+			URL.revokeObjectURL(url);
+		} catch (e) {
+			backupError = e instanceof Error ? e.message : 'No se pudo descargar el backup';
+		} finally {
+			downloadingBackup = false;
+		}
+	}
+
+	async function start2faSetup() {
+		if (totpBusy) return;
+		totpBusy = true;
+		totpError = null;
+		try {
+			const res = await fetch('/api/admin/2fa/setup', { headers: { 'cache-control': 'no-cache' } });
+			const j = await res.json().catch(() => null);
+			if (!res.ok) {
+				totpError = j?.error ?? `Error ${res.status}`;
+				return;
+			}
+			totpSetup = { qr_svg: j.qr_svg, recovery_codes: j.recovery_codes };
+		} catch (e) {
+			totpError = e instanceof Error ? e.message : 'No se pudo iniciar 2FA';
+		} finally {
+			totpBusy = false;
+		}
+	}
+
+	async function enable2fa() {
+		if (totpBusy) return;
+		totpBusy = true;
+		totpError = null;
+		try {
+			const res = await fetch('/api/admin/2fa/enable', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json', ...csrfHeaders() },
+				body: JSON.stringify({ code: totpCode })
+			});
+			const j = await res.json().catch(() => null);
+			if (!res.ok) {
+				totpError = j?.error ?? `Error ${res.status}`;
+				return;
+			}
+			totp = j.status;
+			totpSetup = null;
+			totpCode = '';
+		} catch (e) {
+			totpError = e instanceof Error ? e.message : 'No se pudo activar 2FA';
+		} finally {
+			totpBusy = false;
+		}
+	}
+
+	async function saveCategoryDomains(id: string, raw: string) {
+		const domains = raw
+			.split('\n')
+			.map((x) => x.trim())
+			.filter(Boolean);
+		const res = await fetch('/api/admin/categories', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json', ...csrfHeaders() },
+			body: JSON.stringify({ type: 'domains', category_id: id, domains })
+		});
+		const j = await res.json().catch(() => null);
+		if (!res.ok) {
+			catsError = j?.error ?? `Error ${res.status}`;
+			return;
+		}
+		// recarga
+		const c = await fetch('/api/admin/categories', { headers: { 'cache-control': 'no-cache' } }).catch(() => null);
+		if (c && c.ok) cats = await c.json();
 	}
 
 	const envGroups = [
@@ -99,8 +212,113 @@
 					{loggingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
 				</button>
 			{:else}
-				<p class="muted">Inicia sesión desde OpenVPN o Pi-hole con tu contraseña de admin o auditor.</p>
+				<p class="muted">
+					Inicia sesión en <a href="/login">/login</a> con tu contraseña (admin/operator/auditor).
+				</p>
 			{/if}
+		{/if}
+	</section>
+
+	<section class="panel">
+		<h2 class="panel__h2">2FA (TOTP)</h2>
+		<p class="muted settingsNote">
+			2FA obligatorio para admins cuando está activado. Guarda los recovery codes en un sitio seguro.
+		</p>
+		{#if !auth?.isAdmin}
+			<p class="muted">Solo el rol admin puede configurar 2FA.</p>
+		{:else if totp === null}
+			<p class="muted">Cargando estado…</p>
+		{:else if totp.enabled}
+			<p>
+				Estado: <strong>Activo</strong>
+				{#if totp.created_at}<span class="muted"> (desde {totp.created_at.slice(0, 10)})</span>{/if}
+			</p>
+		{:else}
+			<p>Estado: <strong>Desactivado</strong></p>
+			<button type="button" class="btn secondary" onclick={start2faSetup} disabled={totpBusy}>
+				{totpBusy ? 'Preparando…' : 'Iniciar configuración 2FA'}
+			</button>
+			{#if totpSetup}
+				<div class="settings2fa">
+					<div class="settings2fa__qr" aria-label="QR 2FA">
+						{@html totpSetup.qr_svg}
+					</div>
+					<div class="settings2fa__codes">
+						<strong>Recovery codes</strong>
+						<ul class="mono">
+							{#each totpSetup.recovery_codes as c (c)}
+								<li>{c}</li>
+							{/each}
+						</ul>
+						<label class="settings2fa__field">
+							<span>Código TOTP</span>
+							<input class="input mono" placeholder="123456" bind:value={totpCode} />
+						</label>
+						<button type="button" class="btn btnAccent" onclick={enable2fa} disabled={totpBusy || !totpCode.trim()}>
+							{totpBusy ? 'Activando…' : 'Activar 2FA'}
+						</button>
+					</div>
+				</div>
+			{/if}
+			{#if totpError}
+				<p class="muted" style="margin-top:8px">{totpError}</p>
+			{/if}
+		{/if}
+	</section>
+
+	<section class="panel">
+		<h2 class="panel__h2">Backups</h2>
+		<p class="muted settingsNote">
+			Descarga un export <strong>solo de datos locales del panel</strong> (auditoría, bloqueos, horarios, alias).
+			No incluye tokens ni variables <code class="mono">.env</code>.
+		</p>
+		{#if auth?.isAdmin}
+			<button type="button" class="btn secondary" onclick={downloadBackup} disabled={downloadingBackup}>
+				{downloadingBackup ? 'Generando…' : 'Descargar backup (.json)'}
+			</button>
+			{#if backupError}
+				<p class="muted" style="margin-top:8px">{backupError}</p>
+			{/if}
+		{:else}
+			<p class="muted">Solo el rol admin puede descargar backups.</p>
+		{/if}
+	</section>
+
+	<section class="panel">
+		<h2 class="panel__h2">Categorías (Pi-hole)</h2>
+		<p class="muted settingsNote">
+			Define dominios por categoría. Los horarios por dispositivo se aplican asignando grupos <code class="mono">panel-cat-*</code> en Pi-hole v6.
+		</p>
+		{#if catsError}
+			<p class="muted">{catsError}</p>
+		{/if}
+		{#if cats === null}
+			<p class="muted">Cargando…</p>
+		{:else}
+			<div class="settingsCats">
+				{#each cats.categories as c (c.id)}
+					<details class="settingsCats__cat">
+						<summary>
+							<strong>{c.label}</strong>
+							<span class="muted">({(c.domains?.length ?? 0).toLocaleString('es-ES')} dominios)</span>
+						</summary>
+						<p class="muted" style="margin:6px 0 8px">Un dominio por línea (exacto). Ej: <code class="mono">tiktok.com</code></p>
+						<textarea class="textarea mono" rows="6" value={(c.domains ?? []).join('\n')} />
+						<div style="margin-top:8px">
+							<button
+								type="button"
+								class="btn secondary"
+								onclick={(e) => {
+									const ta = (e.currentTarget.parentElement?.previousElementSibling as HTMLTextAreaElement | null);
+									saveCategoryDomains(c.id, ta?.value ?? '');
+								}}
+							>
+								Guardar dominios
+							</button>
+						</div>
+					</details>
+				{/each}
+			</div>
 		{/if}
 	</section>
 

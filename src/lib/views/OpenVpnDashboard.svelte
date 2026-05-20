@@ -30,7 +30,6 @@
 	let lastRefresh = $state(0);
 	let interval: ReturnType<typeof setInterval> | null = null;
 	let auth = $state<{ configured: boolean; isAdmin: boolean; role?: string | null } | null>(null);
-	let loginPassword = $state('');
 	let loginError = $state<string | null>(null);
 
 	type Notice = { id: string; kind: 'error' | 'ok'; message: string };
@@ -185,23 +184,7 @@
 		loading = false;
 	}
 
-	async function login() {
-		loginError = null;
-		const res = await fetch('/api/auth/login', {
-			method: 'POST',
-			credentials: 'same-origin',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ password: loginPassword })
-		});
-		if (!res.ok) {
-			loginError = res.status === 429 ? 'Demasiados intentos. Espera un momento.' : 'Credenciales inválidas';
-			pushNotice('error', loginError);
-			return;
-		}
-		loginPassword = '';
-		// Recarga completa para que el navegador aplique la cookie Set-Cookie del login.
-		window.location.reload();
-	}
+	// Login ahora se hace desde /login.
 
 	async function logout() {
 		if (interval) {
@@ -321,19 +304,7 @@
 				{#if hasPrivilegedSession}
 					<button type="button" class="btn secondary" onclick={logout}>Salir</button>
 				{:else}
-					<div class="login">
-						<label for="ovpn-login-pw" class="visually-hidden">Contraseña admin o auditor</label>
-						<input
-							id="ovpn-login-pw"
-							class="input"
-							type="password"
-							autocomplete="current-password"
-							placeholder="Contraseña admin o auditor"
-							bind:value={loginPassword}
-							onkeydown={(e) => e.key === 'Enter' && login()}
-						/>
-						<button type="button" class="btn" onclick={login}>Entrar</button>
-					</div>
+					<a class="btn" href={`/login?next=${encodeURIComponent('/dashboard')}`}>Entrar</a>
 				{/if}
 			{:else}
 				<span class="muted">Auth no configurada</span>

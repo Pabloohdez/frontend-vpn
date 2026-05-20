@@ -11,13 +11,17 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"test": "vitest run",
 		"test:watch": "vitest",
+		"check:secrets": "node scripts/check-secrets.mjs",
 		"test:e2e": "playwright test",
 		"test:e2e:install": "playwright install --with-deps chromium",
 		"smoke:health": "node scripts/smoke-health.mjs",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
 	},
 	"dependencies": {
-		"pdfkit": "^0.17.1"
+		"pdfkit": "^0.17.1",
+		"redis": "^5.8.2",
+		"otplib": "^12.0.1",
+		"qrcode": "^1.5.4"
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.49.0",

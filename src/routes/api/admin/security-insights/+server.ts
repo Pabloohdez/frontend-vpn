@@ -11,7 +11,8 @@ import {
 	aggregateAuditInsights,
 	aggregateDnsInsights,
 	buildSecurityAlerts,
-	detectDnsAnomalies
+	detectDnsAnomalies,
+	detectDnsTunnelingLike
 } from '$lib/server/security-insights';
 import { readPrunedIpCnHistory, normalizeVpnVirtualIpKey } from '$lib/server/vpn-ipcn-history';
 
@@ -87,7 +88,10 @@ export const GET: RequestHandler = async ({ request, fetch, url }) => {
 		pi_hole_reachable: piHoleReachable,
 		netmonitor_configured,
 		netmonitor_reachable,
-		anomalies
+		anomalies,
+		dns_threats: piHoleReachable
+			? detectDnsTunnelingLike(rows, hostnameToIpv4, { realLanByVpnIp, netmonitorByIp })
+			: []
 	});
 
 	return json(
@@ -100,6 +104,9 @@ export const GET: RequestHandler = async ({ request, fetch, url }) => {
 			dns,
 			audit,
 			anomalies,
+			threats: piHoleReachable
+				? detectDnsTunnelingLike(rows, hostnameToIpv4, { realLanByVpnIp, netmonitorByIp })
+				: [],
 			alerts
 		},
 		{ status: 200, headers: { 'cache-control': 'no-store' } }

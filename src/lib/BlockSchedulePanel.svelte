@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { t } from '$lib/i18n/locale.svelte';
+	import { csrfHeaders } from '$lib/csrf-client';
 
 	type Schedule = {
 		id: string;
@@ -58,7 +59,7 @@
 		saving = true;
 		const res = await fetch('/api/admin/block-schedules', {
 			method: 'POST',
-			headers: { 'content-type': 'application/json' },
+			headers: { 'content-type': 'application/json', ...csrfHeaders() },
 			body: JSON.stringify({
 				ip: formIp.trim(),
 				label: formLabel.trim() || null,
@@ -80,7 +81,10 @@
 
 	async function remove(id: string) {
 		if (!isAdmin || !confirm('¿Eliminar este horario?')) return;
-		await fetch(`/api/admin/block-schedules?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+		await fetch(`/api/admin/block-schedules?id=${encodeURIComponent(id)}`, {
+			method: 'DELETE',
+			headers: { ...csrfHeaders() }
+		});
 		await load();
 	}
 

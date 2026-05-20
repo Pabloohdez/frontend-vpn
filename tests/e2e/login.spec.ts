@@ -31,4 +31,26 @@ test.describe('smoke', () => {
 		await expect(page.locator('body')).toBeVisible();
 		expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
 	});
+
+	test('login as admin enables privileged API', async ({ page, request }) => {
+		const pw = process.env.E2E_ADMIN_PASSWORD ?? process.env.ADMIN_PASSWORD ?? '';
+		// Si no hay password en el entorno, no tiene sentido fallar el pipeline.
+		test.skip(!pw, 'E2E_ADMIN_PASSWORD/ADMIN_PASSWORD no configurada');
+
+		await page.goto('/openvpn');
+		await page.locator('#ovpn-login-pw').fill(pw);
+		await page.getByRole('button', { name: 'Entrar' }).click();
+		// tras login hay reload
+		await page.waitForLoadState('networkidle');
+
+		const me = await request.get('/api/auth/me', { headers: { 'cache-control': 'no-cache' } });
+		expect(me.ok()).toBeTruthy();
+		const meJson = (await me.json()) as { role?: string | null; isAdmin?: boolean };
+		expect(meJson.role).toBe('admin');
+		expect(meJson.isAdmin).toBe(true);
+
+		// Endpoint protegido (admin/auditor) debe dejar pasar tras login.
+		const sec = await request.get('/api/admin/security-insights?window_hours=1');
+		expect([200, 502, 500]).toContain(sec.status()); // 502/500 aceptable si Pi-hole no está en CI
+	});
 });

@@ -73,6 +73,25 @@
 	font-size: 14px;
 }
 
+.launcherLogin {
+	width: 100%;
+	max-width: 720px;
+	margin: 0 0 20px;
+}
+
+.launcherLogin__row {
+	display: grid;
+	grid-template-columns: 1.2fr 0.9fr auto;
+	gap: 10px;
+	align-items: center;
+}
+
+@media (max-width: 820px) {
+	.launcherLogin__row {
+		grid-template-columns: 1fr;
+	}
+}
+
 .launcher__cards {
 	display: flex;
 	flex-wrap: wrap;

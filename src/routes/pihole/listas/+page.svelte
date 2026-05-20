@@ -3,6 +3,7 @@
 	import './page.css';
 	import type { PiholeLists } from '$lib/pihole-lists';
 	import { isApplied as isAppliedShared, normalizeDomain } from '$lib/pihole-lists';
+	import { csrfHeaders } from '$lib/csrf-client';
 
 	type Notice = { id: string; kind: 'error' | 'ok'; message: string };
 	let notices = $state<Notice[]>([]);
@@ -118,7 +119,7 @@
 		busy = true;
 		const res = await fetch('/api/admin/pihole/domain', {
 			method: 'POST',
-			headers: { 'content-type': 'application/json' },
+			headers: { 'content-type': 'application/json', ...csrfHeaders() },
 			body: JSON.stringify({ domain, list, op, mode })
 		});
 		const body = await res.json().catch(() => null);

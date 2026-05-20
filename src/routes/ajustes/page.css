@@ -72,3 +72,62 @@
 	font-size: 12px;
 	margin: 0;
 }
+
+.page-settings .settings2fa {
+	display: grid;
+	grid-template-columns: 240px 1fr;
+	gap: 14px;
+	margin-top: 12px;
+	align-items: start;
+}
+@media (max-width: 900px) {
+	.page-settings .settings2fa {
+		grid-template-columns: 1fr;
+	}
+}
+.page-settings .settings2fa__qr {
+	border: 1px solid var(--border-default);
+	border-radius: 12px;
+	padding: 10px;
+	background: #fff;
+	overflow: hidden;
+}
+.page-settings .settings2fa__qr svg {
+	width: 100%;
+	height: auto;
+	display: block;
+}
+.page-settings .settings2fa__codes ul {
+	margin: 8px 0 10px;
+	padding-left: 1.2rem;
+	font-size: 12.5px;
+	color: var(--color-muted);
+}
+.page-settings .settings2fa__field {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin: 8px 0 10px;
+	font-size: 13px;
+}
+
+.page-settings .settingsCats {
+	display: grid;
+	gap: 10px;
+}
+.page-settings .settingsCats__cat {
+	border: 1px solid var(--border-default);
+	border-radius: 12px;
+	padding: 10px;
+	background: var(--panel-bg);
+}
+.page-settings .settingsCats__cat summary {
+	cursor: pointer;
+}
+.page-settings .textarea {
+	width: 100%;
+	border-radius: 12px;
+	border: 1px solid var(--border-default);
+	padding: 10px;
+	background: #fff;
+}

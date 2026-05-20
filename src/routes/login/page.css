@@ -1,0 +1,12 @@
+.page-login .loginPanel {
+	max-width: 560px;
+	margin-inline: auto;
+	display: grid;
+	gap: 10px;
+}
+
+.page-login .loginField {
+	display: grid;
+	gap: 6px;
+}
+

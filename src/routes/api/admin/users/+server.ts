@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { isAdminFromRequestCookie } from '$lib/server/auth';
 import { writeAudit } from '$lib/server/audit';
+import { writeCriticalAudit } from '$lib/server/audit-signed';
 import { assertVm1Configured, fetchVm1, vm1ApiKey, vm1BaseUrl } from '$lib/server/vm1';
 
 export const GET: RequestHandler = async ({ request, fetch }) => {
@@ -54,6 +55,19 @@ export const POST: RequestHandler = async ({ request, fetch, getClientAddress })
 		remote_ip: getClientAddress(),
 		details: { upstream_status: upstreamStatus, payload }
 	});
+	try {
+		await writeCriticalAudit({
+			ts: new Date().toISOString(),
+			actor: 'admin',
+			action: 'create_user',
+			target_cn: cn,
+			success: ok,
+			remote_ip: getClientAddress(),
+			details: { upstream_status: upstreamStatus }
+		});
+	} catch {
+		/* best-effort */
+	}
 
 	if (ok) {
 		return json(payload, { status: 200, headers: { 'cache-control': 'no-store' } });
@@ -101,6 +115,19 @@ export const DELETE: RequestHandler = async ({ request, fetch, url, getClientAdd
 		remote_ip: getClientAddress(),
 		details: { upstream_status: upstream.status, payload }
 	});
+	try {
+		await writeCriticalAudit({
+			ts: new Date().toISOString(),
+			actor: 'admin',
+			action: 'revoke_user',
+			target_cn: cn,
+			success: ok,
+			remote_ip: getClientAddress(),
+			details: { upstream_status: upstream.status }
+		});
+	} catch {
+		/* best-effort */
+	}
 
 	return json(payload, { status: ok ? 200 : 502, headers: { 'cache-control': 'no-store' } });
 };

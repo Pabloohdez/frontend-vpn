@@ -33,7 +33,7 @@
 
 		if (h1.status === 401) {
 			vm1 = null;
-			vm1Note = 'Inicia sesión como administrador o auditor para comprobar la API OpenVPN (VM1).';
+			vm1Note = 'Inicia sesión en /login como administrador u auditor para comprobar la API OpenVPN (VM1).';
 		} else {
 			const j1 = await h1.json().catch(() => ({}));
 			vm1 = j1 as VmHealth;
@@ -41,7 +41,7 @@
 
 		if (ph.status === 401) {
 			pihole = null;
-			piholeNote = 'Inicia sesión como administrador o auditor para comprobar Pi-hole.';
+			piholeNote = 'Inicia sesión en /login como administrador u auditor para comprobar Pi-hole.';
 		} else {
 			const jp = await ph.json().catch(() => ({}));
 			pihole = jp as VmHealth;

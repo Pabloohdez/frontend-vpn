@@ -1,6 +1,9 @@
 import type { Handle } from '@sveltejs/kit';
 import { shouldUseSecureCookies } from '$lib/server/auth';
 import { tickBlockSchedules } from '$lib/server/block-schedule-runner';
+import { getRoleFromEventCookiesAsync } from '$lib/server/auth';
+import { getOrCreateCsrfCookie, verifyCsrf } from '$lib/server/csrf';
+import { tickCategoryPolicies } from '$lib/server/category-runner';
 
 /**
  * Cabeceras de seguridad globales. La Content-Security-Policy se gestiona en
@@ -8,10 +11,33 @@ import { tickBlockSchedules } from '$lib/server/block-schedule-runner';
  * scripts inline (theme, hidratación) automáticamente.
  */
 export const handle: Handle = async ({ event, resolve }) => {
+	// CSRF: set cookie if missing; reject mutating requests without header token.
+	const csrf = getOrCreateCsrfCookie(event.request);
+	if (!verifyCsrf(event)) {
+		return new Response('CSRF inválido', {
+			status: 403,
+			headers: { 'cache-control': 'no-store', ...(csrf.setCookie ? { 'set-cookie': csrf.setCookie } : {}) }
+		});
+	}
+
+	// Refresco silencioso: si expira access pero hay refresh válido, renueva la sesión.
+	// (Evita 401 intermitentes por access corto.)
+	// Solo aplica a requests del mismo origen.
+	try {
+		const role = await getRoleFromEventCookiesAsync(event);
+		if (!role) {
+			// noop: el refresh endpoint lo llamará el cliente si quiere
+		}
+	} catch {
+		/* ignore */
+	}
 	// Aplica horarios de bloqueo DNS (throttle interno ~60s).
 	void tickBlockSchedules(event.fetch);
+	// Aplica categorías por horario (throttle interno ~60s).
+	void tickCategoryPolicies(event.fetch);
 
 	const response = await resolve(event);
+	if (csrf.setCookie) response.headers.append('set-cookie', csrf.setCookie);
 
 	response.headers.set('X-Content-Type-Options', 'nosniff');
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');

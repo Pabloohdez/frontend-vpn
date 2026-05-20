@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import {
 	getRoleFromEventCookies,
+	getRoleFromEventCookiesAsync,
 	getRoleFromRequestCookie,
 	getSessionExpiresAtMs,
 	isAuthConfigured,
@@ -10,7 +11,10 @@ import {
 
 export const GET: RequestHandler = async ({ request, cookies }) => {
 	const cookieHeader = request.headers.get('cookie');
-	const role = getRoleFromEventCookies(cookies) ?? getRoleFromRequestCookie(cookieHeader);
+	const role =
+		(await getRoleFromEventCookiesAsync({ cookies })) ??
+		getRoleFromEventCookies(cookies) ??
+		getRoleFromRequestCookie(cookieHeader);
 	const isAdmin = role === 'admin';
 	const sessionExpiresAt = getSessionExpiresAtMs(cookieHeader);
 	return json(

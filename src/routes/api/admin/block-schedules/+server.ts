@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getRoleFromRequestCookie, isAdminFromRequestCookie } from '$lib/server/auth';
+import { getRoleFromRequestCookie, requirePermissionFromRequestCookie } from '$lib/server/auth';
 import { writeAudit } from '$lib/server/audit';
 import {
 	deleteBlockSchedule,
@@ -8,11 +8,13 @@ import {
 	upsertBlockSchedule
 } from '$lib/server/block-schedules-store';
 import { tickBlockSchedules } from '$lib/server/block-schedule-runner';
+import { rateLimitKey } from '$lib/server/rate-limit';
+import { writeCriticalAudit } from '$lib/server/audit-signed';
 
 export const prerender = false;
 
 export const GET: RequestHandler = async ({ request }) => {
-	if (!isAdminFromRequestCookie(request.headers.get('cookie'))) {
+	if (!requirePermissionFromRequestCookie(request.headers.get('cookie'), 'read').ok) {
 		return json({ error: 'unauthorized' }, { status: 401 });
 	}
 	return json({ schedules: listBlockSchedules() }, { headers: { 'cache-control': 'no-store' } });
@@ -29,8 +31,16 @@ type Body = {
 };
 
 export const POST: RequestHandler = async ({ request, fetch, getClientAddress }) => {
-	if (!isAdminFromRequestCookie(request.headers.get('cookie'))) {
+	const authz = requirePermissionFromRequestCookie(request.headers.get('cookie'), 'block_schedules_write');
+	if (!authz.ok) {
 		return json({ error: 'unauthorized' }, { status: 401 });
+	}
+	const rl = rateLimitKey('admin:block_schedules_write', getClientAddress(), { windowMs: 60_000, maxPerWindow: 20 });
+	if (!rl.ok) {
+		return json(
+			{ error: 'rate_limited', retryAfterSec: rl.retryAfterSec },
+			{ status: 429, headers: { 'Retry-After': String(rl.retryAfterSec), 'cache-control': 'no-store' } }
+		);
 	}
 	const role = getRoleFromRequestCookie(request.headers.get('cookie')) ?? 'admin';
 	const body = (await request.json().catch(() => null)) as Body | null;
@@ -56,6 +66,18 @@ export const POST: RequestHandler = async ({ request, fetch, getClientAddress })
 			remote_ip: getClientAddress(),
 			details: { schedule_id: rec.id, ip: rec.ip, start: rec.start, end: rec.end }
 		});
+		try {
+			await writeCriticalAudit({
+				ts: new Date().toISOString(),
+				actor: role,
+				action: body.id ? 'block_schedule_update' : 'block_schedule_create',
+				success: true,
+				remote_ip: getClientAddress(),
+				details: { schedule_id: rec.id, ip: rec.ip, start: rec.start, end: rec.end }
+			});
+		} catch {
+			/* best-effort */
+		}
 		void tickBlockSchedules(fetch, true);
 		return json({ ok: true, schedule: rec }, { headers: { 'cache-control': 'no-store' } });
 	} catch (e) {
@@ -68,8 +90,16 @@ export const POST: RequestHandler = async ({ request, fetch, getClientAddress })
 };
 
 export const DELETE: RequestHandler = async ({ request, url, fetch, getClientAddress }) => {
-	if (!isAdminFromRequestCookie(request.headers.get('cookie'))) {
+	const authz = requirePermissionFromRequestCookie(request.headers.get('cookie'), 'block_schedules_write');
+	if (!authz.ok) {
 		return json({ error: 'unauthorized' }, { status: 401 });
+	}
+	const rl = rateLimitKey('admin:block_schedules_write', getClientAddress(), { windowMs: 60_000, maxPerWindow: 20 });
+	if (!rl.ok) {
+		return json(
+			{ error: 'rate_limited', retryAfterSec: rl.retryAfterSec },
+			{ status: 429, headers: { 'Retry-After': String(rl.retryAfterSec), 'cache-control': 'no-store' } }
+		);
 	}
 	const id = url.searchParams.get('id')?.trim();
 	if (!id) return json({ error: 'bad_request' }, { status: 400 });
@@ -84,6 +114,18 @@ export const DELETE: RequestHandler = async ({ request, url, fetch, getClientAdd
 			remote_ip: getClientAddress(),
 			details: { schedule_id: id }
 		});
+		try {
+			await writeCriticalAudit({
+				ts: new Date().toISOString(),
+				actor: role,
+				action: 'block_schedule_delete',
+				success: true,
+				remote_ip: getClientAddress(),
+				details: { schedule_id: id }
+			});
+		} catch {
+			/* best-effort */
+		}
 		void tickBlockSchedules(fetch, true);
 	}
 	return json({ ok }, { headers: { 'cache-control': 'no-store' } });

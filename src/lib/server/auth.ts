@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { parse as parseCookie, serialize as serializeCookie } from 'cookie';
 import { env } from '$env/dynamic/private';
 import { verifyPbkdf2Token } from '$lib/server/password-verify';
+import { accessCookieName, getRoleFromAccessToken } from '$lib/server/session-store';
 
 export const COOKIE_NAME = 'admin_session';
 
@@ -14,7 +15,15 @@ export const SESSION_SECRET_MIN_LENGTH = 32;
 /** Longitud máxima aceptada en login (mitiga cuerpos enormes). */
 export const MAX_LOGIN_PASSWORD_LENGTH = 512;
 
-export type AuthRole = 'admin' | 'auditor';
+export type AuthRole = 'admin' | 'operator' | 'auditor';
+
+export type Permission =
+	| 'read'
+	| 'pihole_write'
+	| 'internet_block_write'
+	| 'block_schedules_write'
+	| 'openvpn_admin'
+	| 'backup_export';
 
 function envTrim(name: keyof typeof env): string {
 	const v = env[name];
@@ -125,6 +134,16 @@ export function verifyPasswordAndGetRole(password: string): AuthRole | null {
 	const admin = envTrim('ADMIN_PASSWORD');
 	if (admin && timingEq(password, admin)) return 'admin';
 
+	// Operator (opcional): puede operar pero no administrar OpenVPN.
+	const pbkdfOp = (env.OPERATOR_PASSWORD_PBKDF2 ?? '').trim();
+	if (pbkdfOp) {
+		const r = verifyPbkdf2Token(password, pbkdfOp);
+		if (r === true) return 'operator';
+		return null;
+	}
+	const operator = envTrim('OPERATOR_PASSWORD');
+	if (operator && timingEq(password, operator)) return 'operator';
+
 	const pbkdfAud = (env.AUDITOR_PASSWORD_PBKDF2 ?? '').trim();
 	if (pbkdfAud) {
 		const r = verifyPbkdf2Token(password, pbkdfAud);
@@ -141,7 +160,7 @@ function roleFromSessionValue(raw: string | undefined | null): AuthRole | null {
 
 	const [issuedAt, role, sig] = raw.split('.', 3);
 	if (!issuedAt || !role || !sig) return null;
-	if (role !== 'admin' && role !== 'auditor') return null;
+	if (role !== 'admin' && role !== 'operator' && role !== 'auditor') return null;
 
 	const issuedMs = Number(issuedAt);
 	if (!Number.isFinite(issuedMs) || Date.now() - issuedMs > SESSION_MAX_MS) return null;
@@ -155,9 +174,35 @@ function roleFromSessionValue(raw: string | undefined | null): AuthRole | null {
 	}
 }
 
+export function hasPermission(role: AuthRole | null | undefined, perm: Permission): boolean {
+	if (!role) return false;
+	if (role === 'admin') return true;
+	if (role === 'auditor') return perm === 'read';
+	// operator
+	if (perm === 'read') return true;
+	if (perm === 'pihole_write') return true;
+	if (perm === 'internet_block_write') return true;
+	if (perm === 'block_schedules_write') return true;
+	if (perm === 'backup_export') return false; // solo admin
+	if (perm === 'openvpn_admin') return false;
+	return false;
+}
+
+export function requirePermissionFromRequestCookie(
+	cookieHeader: string | null | undefined,
+	perm: Permission
+): { ok: true; role: AuthRole } | { ok: false } {
+	const role = getRoleFromRequestCookie(cookieHeader);
+	return hasPermission(role, perm) && role ? { ok: true, role } : { ok: false };
+}
+
 export function getRoleFromRequestCookie(cookieHeader: string | null | undefined): AuthRole | null {
 	if (!cookieHeader) return null;
 	const cookies = parseCookie(cookieHeader);
+	// Nueva sesión Redis (si existe cookie access)
+	const access = cookies[accessCookieName()];
+	// NOTA: esta función es sync; para Redis usamos getRoleFromEventCookies async en handlers.
+	// Aquí solo dejamos compatibilidad antigua.
 	return roleFromSessionValue(cookies[COOKIE_NAME]);
 }
 
@@ -165,6 +210,16 @@ export function getRoleFromEventCookies(cookies: {
 	get: (name: string) => string | undefined;
 }): AuthRole | null {
 	return roleFromSessionValue(cookies.get(COOKIE_NAME));
+}
+
+export async function getRoleFromEventCookiesAsync(event: {
+	cookies: { get: (name: string) => string | undefined };
+}): Promise<AuthRole | null> {
+	const legacy = roleFromSessionValue(event.cookies.get(COOKIE_NAME));
+	if (legacy) return legacy;
+	const access = event.cookies.get(accessCookieName());
+	if (!access) return null;
+	return await getRoleFromAccessToken(access);
 }
 
 export function isAuditorOrAdminFromRequestCookie(cookieHeader: string | null | undefined) {

@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { isAdminFromRequestCookie } from '$lib/server/auth';
 import { writeAudit } from '$lib/server/audit';
+import { writeCriticalAudit } from '$lib/server/audit-signed';
 import { assertVm1Configured, fetchVm1, vm1ApiKey, vm1BundleUrlForCn } from '$lib/server/vm1';
 
 export const GET: RequestHandler = async ({ request, fetch, url, getClientAddress }) => {
@@ -31,6 +32,19 @@ export const GET: RequestHandler = async ({ request, fetch, url, getClientAddres
 		remote_ip: getClientAddress(),
 		details: { upstream_status: upstream.status }
 	});
+	try {
+		await writeCriticalAudit({
+			ts: new Date().toISOString(),
+			actor: 'admin',
+			action: 'download_bundle',
+			target_cn: cn,
+			success: upstream.ok,
+			remote_ip: getClientAddress(),
+			details: { upstream_status: upstream.status }
+		});
+	} catch {
+		/* best-effort */
+	}
 
 	if (!upstream.ok) {
 		const raw = await upstream.text().catch(() => '');

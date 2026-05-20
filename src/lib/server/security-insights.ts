@@ -106,6 +106,16 @@ export type SecurityAlertInput = {
 	netmonitor_reachable?: boolean;
 	failed_login_threshold?: number;
 	anomalies?: DnsAnomaly[];
+	dns_threats?: DnsThreatFinding[];
+};
+
+export type DnsThreatFinding = {
+	kind: 'tunneling_suspect' | 'txt_suspect';
+	client: string;
+	label: string | null;
+	domain: string;
+	score: number;
+	detail: string;
 };
 
 export type DnsAnomaly = {
@@ -261,7 +271,92 @@ export function buildSecurityAlerts(input: SecurityAlertInput): SecurityAlert[] 
 		});
 	}
 
+	if (input.dns_threats && input.dns_threats.length > 0) {
+		const top = input.dns_threats.slice(0, 3);
+		const severity: 'warn' | 'critical' = top.some((t) => t.score >= 80) ? 'critical' : 'warn';
+		alerts.push({
+			id: 'dns_threats',
+			severity,
+			title: `Señales de tunelización/exfil en ${input.dns_threats.length} consulta(s)`,
+			detail: top
+				.map((t) => `${t.label ?? t.client}: ${t.domain} (${t.kind === 'txt_suspect' ? 'TXT' : 'sospecha'})`)
+				.join(' · ')
+		});
+	}
+
 	return alerts;
+}
+
+function domainEntropyScore(domain: string): number {
+	// Heurística rápida: longitud + variedad de chars en labels.
+	const d = domain.toLowerCase();
+	const labels = d.split('.').filter(Boolean);
+	const longLabel = Math.max(...labels.map((l) => l.length), 0);
+	const alphaNum = (d.match(/[a-z0-9]/g) ?? []).length;
+	const uniq = new Set((d.match(/[a-z0-9]/g) ?? [])).size;
+	let score = 0;
+	if (longLabel >= 40) score += 35;
+	if (longLabel >= 55) score += 25;
+	if (labels.length >= 5) score += 15;
+	if (alphaNum >= 60) score += 10;
+	if (uniq >= 16) score += 15;
+	return Math.min(100, score);
+}
+
+export function detectDnsTunnelingLike(
+	rows: PiholeQueryTuple[],
+	hostnameToIpv4: Record<string, string>,
+	opts?: { realLanByVpnIp?: Record<string, string>; netmonitorByIp?: NetmonitorIpMap }
+): DnsThreatFinding[] {
+	const out: DnsThreatFinding[] = [];
+	const realLanByVpnIp = opts?.realLanByVpnIp ?? {};
+	const netmonitorByIp = opts?.netmonitorByIp ?? {};
+
+	for (const row of rows) {
+		const domain = String(row[2] ?? '').trim();
+		const client = String(row[3] ?? '').trim();
+		const qtype = String(row[1] ?? '').trim().toUpperCase();
+		if (!domain || !client) continue;
+
+		if (qtype === 'TXT') {
+			const score = domainEntropyScore(domain) + 30;
+			if (score >= 70) {
+				const enriched = enrichClientWithDevice(client, hostnameToIpv4, realLanByVpnIp, netmonitorByIp);
+				out.push({
+					kind: 'txt_suspect',
+					client,
+					label: enriched.device_label ?? null,
+					domain,
+					score: Math.min(100, score),
+					detail: 'Consultas TXT con subdominios largos/alta entropía'
+				});
+			}
+			continue;
+		}
+
+		const score = domainEntropyScore(domain);
+		if (score >= 75) {
+			const enriched = enrichClientWithDevice(client, hostnameToIpv4, realLanByVpnIp, netmonitorByIp);
+			out.push({
+				kind: 'tunneling_suspect',
+				client,
+				label: enriched.device_label ?? null,
+				domain,
+				score,
+				detail: 'Subdominios largos/alta entropía (posible DNS tunneling)'
+			});
+		}
+	}
+
+	// dedupe por client+domain+kind (nos quedamos con score mayor)
+	const key = (t: DnsThreatFinding) => `${t.kind}:${t.client}:${t.domain}`;
+	const best = new Map<string, DnsThreatFinding>();
+	for (const t of out) {
+		const k = key(t);
+		const prev = best.get(k);
+		if (!prev || t.score > prev.score) best.set(k, t);
+	}
+	return [...best.values()].sort((a, b) => b.score - a.score).slice(0, 25);
 }
 
 export async function aggregateAuditInsights(auditDays: number): Promise<AuditInsights> {

@@ -20,6 +20,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Secrets/PII check
+        run: npm run check:secrets
+
       - name: Typecheck (svelte-check)
         run: npm run check
 

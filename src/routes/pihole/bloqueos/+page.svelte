@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import BlockSchedulePanel from '$lib/BlockSchedulePanel.svelte';
+	import { csrfHeaders } from '$lib/csrf-client';
 	import './page.css';
 
 	type Device = {
@@ -14,6 +15,8 @@
 		blocked: boolean;
 		blocked_at: string | null;
 		blocked_by: string | null;
+		blocked_source: 'manual' | 'schedule' | null;
+		block_schedule_id: string | null;
 		vpn_cn: string | null;
 		vpn_connected: boolean;
 		in_netmonitor: boolean;
@@ -122,7 +125,7 @@
 		busyIp = d.ip;
 		const res = await fetch('/api/admin/internet-block', {
 			method: 'POST',
-			headers: { 'content-type': 'application/json' },
+			headers: { 'content-type': 'application/json', ...csrfHeaders() },
 			body: JSON.stringify({
 				ip: d.ip,
 				op,
@@ -277,6 +280,14 @@
 										{#if d.blocked && d.blocked_at}
 											<div class="muted blockTable__sub">
 												{d.blocked_at.slice(0, 16).replace('T', ' ')}
+											</div>
+										{/if}
+										{#if d.blocked && d.blocked_source}
+											<div class="muted blockTable__sub">
+												{d.blocked_source === 'schedule' ? 'Por horario' : 'Manual'}
+												{#if d.blocked_source === 'schedule' && d.block_schedule_id}
+													<span class="mono"> · {d.block_schedule_id.slice(0, 8)}</span>
+												{/if}
 											</div>
 										{/if}
 									</td>

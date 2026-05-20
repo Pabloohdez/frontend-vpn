@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import './page.css';
+	import { csrfHeaders } from '$lib/csrf-client';
 
 	type UserRow = { status: string; name: string; expiration?: string };
 
@@ -165,7 +166,10 @@
 
 	async function revoke(cn: string) {
 		setBusy(cn, { revoking: true });
-		const res = await fetch(`/api/admin/users?cn=${encodeURIComponent(cn)}`, { method: 'DELETE' });
+		const res = await fetch(`/api/admin/users?cn=${encodeURIComponent(cn)}`, {
+			method: 'DELETE',
+			headers: { ...csrfHeaders() }
+		});
 		if (!res.ok) {
 			pushNotice('error', `No se pudo revocar a ${cn} (HTTP ${res.status})`, 6500);
 			setBusy(cn, { revoking: false });
@@ -187,7 +191,7 @@
 		setBusy(cn, { hide: true });
 		const res = await fetch('/api/admin/revoked-hidden', {
 			method: 'PUT',
-			headers: { 'content-type': 'application/json' },
+			headers: { 'content-type': 'application/json', ...csrfHeaders() },
 			body: JSON.stringify({ cn })
 		});
 		if (!res.ok) {
@@ -204,7 +208,7 @@
 		setBusy(cn, { unhide: true });
 		const res = await fetch('/api/admin/revoked-hidden', {
 			method: 'DELETE',
-			headers: { 'content-type': 'application/json' },
+			headers: { 'content-type': 'application/json', ...csrfHeaders() },
 			body: JSON.stringify({ cn })
 		});
 		if (!res.ok) {
@@ -229,7 +233,7 @@
 		creating = true;
 		const res = await fetch('/api/admin/users', {
 			method: 'POST',
-			headers: { 'content-type': 'application/json' },
+			headers: { 'content-type': 'application/json', ...csrfHeaders() },
 			body: JSON.stringify({ cn, days_valid: days })
 		});
 		if (!res.ok) {
@@ -337,7 +341,7 @@
 		const alias = next.trim();
 		const res = await fetch('/api/admin/user-aliases', {
 			method: 'PUT',
-			headers: { 'content-type': 'application/json' },
+			headers: { 'content-type': 'application/json', ...csrfHeaders() },
 			body: JSON.stringify({ cn, alias: alias || null })
 		});
 		if (!res.ok) {
