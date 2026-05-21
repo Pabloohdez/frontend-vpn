@@ -10,6 +10,8 @@ import {
 	upsertCategoryPolicy
 } from '$lib/server/category-store';
 import { rateLimitKey } from '$lib/server/rate-limit';
+import { writeAudit } from '$lib/server/audit';
+import { writeCriticalAudit } from '$lib/server/audit-signed';
 
 export const prerender = false;
 
@@ -40,6 +42,20 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		const domains = Array.isArray(body?.domains) ? (body.domains as unknown[]) : null;
 		if (!id || !domains) return json({ error: 'bad_request' }, { status: 400 });
 		const cat = upsertCategoryDomains(id, domains.map(String));
+		const entry = {
+			ts: new Date().toISOString(),
+			actor: authz.role,
+			action: 'category_domains_update' as const,
+			success: true,
+			remote_ip: getClientAddress(),
+			details: { category_id: id, count: cat?.domains?.length ?? 0 }
+		};
+		await writeAudit(entry);
+		try {
+			await writeCriticalAudit(entry);
+		} catch {
+			/* MASTER_KEY opcional */
+		}
 		return json({ ok: true, category: cat }, { headers: { 'cache-control': 'no-store' } });
 	}
 
@@ -47,6 +63,20 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		const p = body?.policy;
 		if (!p || typeof p !== 'object') return json({ error: 'bad_request' }, { status: 400 });
 		const saved = upsertCategoryPolicy(p);
+		const entry = {
+			ts: new Date().toISOString(),
+			actor: authz.role,
+			action: 'category_policy_upsert' as const,
+			success: true,
+			remote_ip: getClientAddress(),
+			details: { policy_id: saved.id, ip: saved.ip, category_id: saved.category_id }
+		};
+		await writeAudit(entry);
+		try {
+			await writeCriticalAudit(entry);
+		} catch {
+			/* MASTER_KEY opcional */
+		}
 		return json({ ok: true, policy: saved }, { headers: { 'cache-control': 'no-store' } });
 	}
 
@@ -67,6 +97,22 @@ export const DELETE: RequestHandler = async ({ request, url, getClientAddress })
 	const id = url.searchParams.get('policy_id');
 	if (!id) return json({ error: 'bad_request' }, { status: 400 });
 	const ok = deleteCategoryPolicy(id);
+	if (ok) {
+		const entry = {
+			ts: new Date().toISOString(),
+			actor: authz.role,
+			action: 'category_policy_delete' as const,
+			success: true,
+			remote_ip: getClientAddress(),
+			details: { policy_id: id }
+		};
+		await writeAudit(entry);
+		try {
+			await writeCriticalAudit(entry);
+		} catch {
+			/* MASTER_KEY opcional */
+		}
+	}
 	return json({ ok }, { headers: { 'cache-control': 'no-store' } });
 };
 

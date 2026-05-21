@@ -42,7 +42,7 @@ Leyenda: ✅ Hecho · ⚠️ Parcial · ❌ No / no aplica
 | Requisito | Estado | Dónde / notas |
 |-----------|--------|----------------|
 | Rate limiting (auth, escritura) | ✅ | `src/lib/server/rate-limit.ts` — login, Pi-hole, panel-users, backup, 2FA, etc. |
-| Protección CSRF | ⚠️ | `src/lib/server/csrf.ts`, `src/hooks.server.ts`, `src/lib/csrf-client.ts`. Revisar que **todos** los POST del cliente envíen `x-csrf-token`. |
+| Protección CSRF | ✅ | `csrf.ts` + `csrf-client.ts` + `apiFetch()` en `src/lib/api-client.ts`. Respuesta 403 JSON `csrf_invalid`. Login/refresh/logout exentos. |
 | CSP | ✅ | `svelte.config.js` — sin `upgrade-insecure-requests` en LAN HTTP. |
 | Validación de dominios (ban Pi-hole) | ✅ | `src/routes/api/admin/pihole/domain/+server.ts` — `normalizeDomain`, `isValidDomain`, escape en wildcards. |
 | Cabeceras X-Frame-Options, etc. | ✅ | `src/hooks.server.ts` |
@@ -64,7 +64,7 @@ Leyenda: ✅ Hecho · ⚠️ Parcial · ❌ No / no aplica
 
 | Requisito | Estado | Dónde / notas |
 |-----------|--------|----------------|
-| Integración URLhaus / AbuseCH | ❌ | Sin feeds externos automáticos. |
+| Integración URLhaus / AbuseCH | ⚠️ | `src/lib/server/urlhaus-sync.ts`, UI en Ajustes. Requiere `THREAT_INTEL_ENABLED` + `URLHAUS_AUTH_KEY`. Sync automático cada N horas. |
 | Alertas por categorías (porn, gambling, …) | ⚠️ | Categorías en `src/lib/server/category-store.ts` — dominios **manuales** en Ajustes. |
 | DNS tunneling (subdominios largos, entropía) | ✅ | `detectDnsTunnelingLike()` en `src/lib/server/security-insights.ts` |
 | Consultas TXT sospechosas | ✅ | Misma heurística (`txt_suspect`) |
@@ -105,9 +105,10 @@ sudo docker compose -f docker-compose.prod.yml up -d --build
 1. ~~Obligar 2FA para admins~~ → `ADMIN_2FA_REQUIRED` + modal sin «Ahora no».
 2. ~~UI políticas de categorías~~ → `CategoryPoliciesAdmin.svelte` en Ajustes.
 3. ~~Auditoría firmada usuarios panel~~ → `writeCriticalAudit` en `/api/admin/panel-users`.
-4. CSRF en todos los `fetch` mutantes del frontend (revisión pendiente).
-5. Feed threat intel opcional (URLhaus → categoría `malware`).
-6. HTTPS + HSTS cuando el panel salga de LAN solo HTTP.
+4. ~~CSRF~~ → `apiFetch()` + cobertura manual con `csrfHeaders()` en componentes existentes.
+5. ~~Threat intel URLhaus~~ → activar en `.env` y sincronizar desde Ajustes.
+6. ~~Renovar sesión automáticamente~~ → `SessionExpiryBanner` renueva con `/api/auth/refresh` si quedan menos de 5 min.
+7. HTTPS + HSTS cuando el panel salga de LAN solo HTTP.
 
 ---
 

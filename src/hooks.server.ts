@@ -4,6 +4,7 @@ import { tickBlockSchedules } from '$lib/server/block-schedule-runner';
 import { getRoleFromEventCookiesAsync } from '$lib/server/auth';
 import { getOrCreateCsrfCookie, verifyCsrf } from '$lib/server/csrf';
 import { tickCategoryPolicies } from '$lib/server/category-runner';
+import { tickThreatIntelSync } from '$lib/server/urlhaus-sync';
 
 /**
  * Cabeceras de seguridad globales. La Content-Security-Policy se gestiona en
@@ -14,9 +15,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// CSRF: set cookie if missing; reject mutating requests without header token.
 	const csrf = getOrCreateCsrfCookie(event.request);
 	if (!verifyCsrf(event)) {
-		return new Response('CSRF inválido', {
+		return new Response(JSON.stringify({ error: 'csrf_invalid', message: 'CSRF inválido' }), {
 			status: 403,
-			headers: { 'cache-control': 'no-store', ...(csrf.setCookie ? { 'set-cookie': csrf.setCookie } : {}) }
+			headers: {
+				'content-type': 'application/json',
+				'cache-control': 'no-store',
+				...(csrf.setCookie ? { 'set-cookie': csrf.setCookie } : {})
+			}
 		});
 	}
 
@@ -35,6 +40,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	void tickBlockSchedules(event.fetch);
 	// Aplica categorías por horario (throttle interno ~60s).
 	void tickCategoryPolicies(event.fetch);
+	void tickThreatIntelSync(event.fetch);
 
 	const response = await resolve(event);
 	if (csrf.setCookie) response.headers.append('set-cookie', csrf.setCookie);

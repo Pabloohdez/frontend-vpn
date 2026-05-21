@@ -3,9 +3,11 @@
 	import { onMount } from 'svelte';
 
 	const WARN_MS = 15 * 60 * 1000;
+	const REFRESH_MS = 5 * 60 * 1000;
 
 	let show = $state(false);
 	let minsLeft = $state(0);
+	let lastRefreshAttempt = 0;
 
 	async function tick() {
 		if (!browser) return;
@@ -24,6 +26,16 @@
 			const ms = exp - Date.now();
 			minsLeft = Math.max(0, Math.ceil(ms / 60000));
 			show = ms > 0 && ms < WARN_MS;
+
+			if (ms > 0 && ms < REFRESH_MS && Date.now() - lastRefreshAttempt > 60_000) {
+				lastRefreshAttempt = Date.now();
+				const refresh = await fetch('/api/auth/refresh', {
+					method: 'POST',
+					credentials: 'same-origin',
+					headers: { 'cache-control': 'no-store' }
+				});
+				if (refresh.ok) await tick();
+			}
 		} catch {
 			show = false;
 		}

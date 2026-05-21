@@ -21,7 +21,11 @@ export type AuditAction =
 	| 'block_schedule_delete'
 	| 'panel_user_create'
 	| 'panel_user_update'
-	| 'panel_user_delete';
+	| 'panel_user_delete'
+	| 'category_domains_update'
+	| 'category_policy_upsert'
+	| 'category_policy_delete'
+	| 'threat_intel_sync';
 
 export type AuditEntry = {
 	ts: string;

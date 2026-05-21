@@ -5,6 +5,7 @@
 	import { apiErrorMessage, describeFetchResponse } from '$lib/api-errors';
 	import PanelUsersAdmin from '$lib/PanelUsersAdmin.svelte';
 	import CategoryPoliciesAdmin from '$lib/CategoryPoliciesAdmin.svelte';
+	import ThreatIntelAdmin from '$lib/ThreatIntelAdmin.svelte';
 	import './page.css';
 
 	let auth = $state<{
@@ -362,6 +363,10 @@
 					policies={cats.policies}
 					onChange={loadCategories}
 				/>
+			{/if}
+			{#if auth?.isAdmin}
+				<h3 class="panel__h3" style="margin-top:1.25rem">Threat intel (URLhaus)</h3>
+				<ThreatIntelAdmin />
 			{/if}
 		{/if}
 	</section>
