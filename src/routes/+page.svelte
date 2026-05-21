@@ -5,10 +5,30 @@
 	import { onMount } from 'svelte';
 
 	let auth = $state<{ role?: string | null; configured?: boolean } | null>(null);
+	let overview = $state<{
+		vpn_health?: { ok?: boolean };
+		pihole_health?: { ok?: boolean };
+		security_alert_count?: number;
+		generated_at?: string;
+	} | null>(null);
+
+	const isStaff = $derived(
+		auth?.role === 'admin' || auth?.role === 'auditor' || auth?.role === 'operator'
+	);
 
 	onMount(async () => {
 		const res = await fetch('/api/auth/me', { headers: { 'cache-control': 'no-cache' } }).catch(() => null);
 		auth = res && res.ok ? await res.json() : { role: null, configured: false };
+		if (
+			auth?.role === 'admin' ||
+			auth?.role === 'auditor' ||
+			auth?.role === 'operator'
+		) {
+			const o = await fetch('/api/admin/overview', { headers: { 'cache-control': 'no-cache' } }).catch(
+				() => null
+			);
+			overview = o?.ok ? await o.json() : null;
+		}
 	});
 </script>
 
@@ -37,6 +57,24 @@
 		{#if auth?.configured && !auth?.role}
 			<section class="launcherLogin" aria-label="Iniciar sesión">
 				<LoginForm compact />
+			</section>
+		{/if}
+
+		{#if isStaff && overview}
+			<section class="launcherOverview" aria-label="Resumen del sistema">
+				<div class="launcherOverview__grid">
+					<span class="launcherOverview__chip" data-ok={overview.vpn_health?.ok ? '1' : '0'}>
+						VM1 {overview.vpn_health?.ok ? 'OK' : 'caído'}
+					</span>
+					<span class="launcherOverview__chip" data-ok={overview.pihole_health?.ok ? '1' : '0'}>
+						Pi-hole {overview.pihole_health?.ok ? 'OK' : 'caído'}
+					</span>
+					{#if (overview.security_alert_count ?? 0) > 0}
+						<a class="launcherOverview__chip launcherOverview__chip--warn" href="/seguridad">
+							{overview.security_alert_count} alertas (24 h)
+						</a>
+					{/if}
+				</div>
 			</section>
 		{/if}
 

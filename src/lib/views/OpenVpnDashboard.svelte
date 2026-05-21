@@ -3,6 +3,7 @@
 	import { logoutAndGoHome } from '$lib/logout-client';
 	import { apiFetch } from '$lib/api-client';
 	import { apiErrorMessage, describeFetchResponse } from '$lib/api-errors';
+	import { readRefreshMs, refreshLabel, refreshPresets, writeRefreshMs } from '$lib/refresh-prefs';
 	import InternetBlockButton from '$lib/InternetBlockButton.svelte';
 	import '../../routes/dashboard.css';
 
@@ -24,6 +25,11 @@
 		total_bytes_received: number;
 		total_bytes_sent: number;
 		connected_clients: VpnClient[];
+		stale?: boolean;
+		last_known_at?: string;
+		warning?: string;
+		message?: string;
+		cached?: boolean;
 	};
 
 	let status = $state<VpnStatus | null>(null);
@@ -31,6 +37,7 @@
 	let loading = $state(true);
 	let lastRefresh = $state(0);
 	let interval: ReturnType<typeof setInterval> | null = null;
+	let refreshMs = $state(readRefreshMs(2000));
 	let auth = $state<{ configured: boolean; isAdmin: boolean; role?: string | null } | null>(null);
 	let loginError = $state<string | null>(null);
 
@@ -165,6 +172,22 @@
 		return null;
 	}
 
+	function restartAutoRefresh() {
+		if (interval) {
+			clearInterval(interval);
+			interval = null;
+		}
+		if (refreshMs > 0 && hasPrivilegedSession) {
+			interval = setInterval(refresh, refreshMs);
+		}
+	}
+
+	function onRefreshIntervalChange(ms: number) {
+		refreshMs = ms;
+		writeRefreshMs(ms);
+		restartAutoRefresh();
+	}
+
 	async function refresh() {
 		if (!hasPrivilegedSession) {
 			loading = false;
@@ -290,8 +313,9 @@
 				return;
 			}
 			await Promise.all([loadVm1(), loadUsers(), loadIpHistory(), loadInternetBlocks()]);
+			refreshMs = readRefreshMs(2000);
 			await refresh();
-			interval = setInterval(refresh, 2000);
+			restartAutoRefresh();
 		})();
 		return () => {
 			cancelled = true;
@@ -320,6 +344,20 @@
 				{/if}
 			{:else}
 				<span class="muted">Auth no configurada</span>
+			{/if}
+			{#if hasPrivilegedSession}
+				<label class="muted refreshSelect">
+					<span class="visually-hidden">Intervalo de actualización</span>
+					<select
+						class="inp inp--compact"
+						value={String(refreshMs)}
+						onchange={(e) => onRefreshIntervalChange(Number((e.currentTarget as HTMLSelectElement).value))}
+					>
+						{#each refreshPresets() as ms (ms)}
+							<option value={String(ms)}>{refreshLabel(ms)}</option>
+						{/each}
+					</select>
+				</label>
 			{/if}
 			<button
 				type="button"
@@ -353,6 +391,18 @@
 
 	{#if loginError}
 		<section class="panel cardError">{loginError}</section>
+	{/if}
+
+	{#if status?.stale}
+		<section class="panel panel--warn staleBanner" role="status">
+			<strong>Estado en caché</strong>
+			<p class="muted">
+				{status.message ?? 'VM1 no responde; se muestra el último estado conocido.'}
+				{#if status.last_known_at}
+					<span class="mono"> ({status.last_known_at})</span>
+				{/if}
+			</p>
+		</section>
 	{/if}
 
 	{#if error}

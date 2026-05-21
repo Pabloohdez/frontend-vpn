@@ -10,6 +10,8 @@ import { writeAudit } from '$lib/server/audit';
 import { fetchVm1 } from '$lib/server/vm1';
 import { log } from '$lib/server/log';
 import { updateIpCnHistoryFromStatus } from '$lib/server/vpn-ipcn-history';
+import { cacheTtlMs, getCachedJson, setCachedJson } from '$lib/server/upstream-cache';
+import { getLastKnown, recordLastKnown } from '$lib/server/upstream-last-known';
 
 export const prerender = false;
 
@@ -41,6 +43,18 @@ export const GET: RequestHandler = async ({ fetch, request, url, getClientAddres
 	const revealCn = url.searchParams.get('reveal_cn');
 	const canRevealOne = Boolean(role && hasPermission(role, 'vpn_write') && revealCn);
 
+	const statusCacheKey = 'vpn:status:masked';
+	const statusTtl = cacheTtlMs('UPSTREAM_CACHE_VPN_STATUS_SEC', 8);
+	const forceFresh = url.searchParams.get('fresh') === '1';
+	const skipCache = forceFresh || Boolean(revealCn);
+
+	if (!skipCache) {
+		const cached = getCachedJson<Record<string, unknown>>(statusCacheKey, statusTtl);
+		if (cached) {
+			return json({ ...cached, cached: true }, { headers: { 'Cache-Control': 'no-store' } });
+		}
+	}
+
 	const upstream = await fetchVm1(`${baseUrl}/api/v1/status`, {
 		headers: { 'X-API-Key': apiKey }
 	});
@@ -53,6 +67,21 @@ export const GET: RequestHandler = async ({ fetch, request, url, getClientAddres
 			(errBody as { error?: string }).error === 'upstream_unreachable'
 		) {
 			log.warn('vpn_status_unreachable', errBody);
+			const last = getLastKnown('vpn_status');
+			if (last?.data && typeof last.data === 'object') {
+				return json(
+					{
+						...(last.data as object),
+						stale: true,
+						last_known_at: last.at,
+						warning: 'vm1_unavailable',
+						message:
+							(errBody as { message?: string }).message ??
+							'VM1 no responde; mostrando último estado conocido.'
+					},
+					{ status: 200, headers: { 'Cache-Control': 'no-store' } }
+				);
+			}
 			return json(errBody, { status: 502, headers: { 'Cache-Control': 'no-store' } });
 		}
 		log.warn('vpn_status_upstream_http', { status: upstream.status });
@@ -120,6 +149,12 @@ export const GET: RequestHandler = async ({ fetch, request, url, getClientAddres
 			target_cn: typeof revealCn === 'string' ? revealCn : undefined,
 			details: { scope: 'status_reveal_one' }
 		});
+	}
+
+	if (!revealCn) {
+		const snapshot = structuredClone(data);
+		recordLastKnown('vpn_status', snapshot);
+		setCachedJson(statusCacheKey, data);
 	}
 
 	return json(data, { headers: { 'Cache-Control': 'no-store' } });

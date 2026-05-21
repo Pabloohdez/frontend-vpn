@@ -1,4 +1,5 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac } from 'node:crypto';
+import { timingSafeEqualString } from '$lib/server/crypto-utils';
 import { parse as parseCookie, serialize as serializeCookie } from 'cookie';
 import { env } from '$env/dynamic/private';
 import { verifyPbkdf2Token } from '$lib/server/password-verify';
@@ -120,14 +121,6 @@ export function isAdminFromRequestCookie(cookieHeader: string | null | undefined
 	return getRoleFromRequestCookie(cookieHeader) === 'admin';
 }
 
-function timingEq(a: string, b: string) {
-	try {
-		return timingSafeEqual(Buffer.from(a), Buffer.from(b));
-	} catch {
-		return false;
-	}
-}
-
 /** Usuarios definidos en `.env` con nombres fijos (compatibilidad). */
 function verifyEnvUsernamePassword(username: string, password: string): AuthRole | null {
 	if (password.length > MAX_LOGIN_PASSWORD_LENGTH) return null;
@@ -140,7 +133,7 @@ function verifyEnvUsernamePassword(username: string, password: string): AuthRole
 			return r === true ? 'admin' : null;
 		}
 		const admin = envTrim('ADMIN_PASSWORD');
-		if (admin && timingEq(password, admin)) return 'admin';
+		if (admin && timingSafeEqualString(password, admin)) return 'admin';
 		return null;
 	}
 
@@ -151,7 +144,7 @@ function verifyEnvUsernamePassword(username: string, password: string): AuthRole
 			return r === true ? 'operator' : null;
 		}
 		const operator = envTrim('OPERATOR_PASSWORD');
-		if (operator && timingEq(password, operator)) return 'operator';
+		if (operator && timingSafeEqualString(password, operator)) return 'operator';
 		return null;
 	}
 
@@ -162,7 +155,7 @@ function verifyEnvUsernamePassword(username: string, password: string): AuthRole
 			return r === true ? 'auditor' : null;
 		}
 		const auditor = envTrim('AUDITOR_PASSWORD');
-		if (auditor && timingEq(password, auditor)) return 'auditor';
+		if (auditor && timingSafeEqualString(password, auditor)) return 'auditor';
 		return null;
 	}
 
@@ -192,7 +185,7 @@ export function verifyPasswordAndGetRole(password: string): AuthRole | null {
 		return null;
 	}
 	const admin = envTrim('ADMIN_PASSWORD');
-	if (admin && timingEq(password, admin)) return 'admin';
+	if (admin && timingSafeEqualString(password, admin)) return 'admin';
 
 	// Operator (opcional): puede operar pero no administrar OpenVPN.
 	const pbkdfOp = (env.OPERATOR_PASSWORD_PBKDF2 ?? '').trim();
@@ -202,7 +195,7 @@ export function verifyPasswordAndGetRole(password: string): AuthRole | null {
 		return null;
 	}
 	const operator = envTrim('OPERATOR_PASSWORD');
-	if (operator && timingEq(password, operator)) return 'operator';
+	if (operator && timingSafeEqualString(password, operator)) return 'operator';
 
 	const pbkdfAud = (env.AUDITOR_PASSWORD_PBKDF2 ?? '').trim();
 	if (pbkdfAud) {
@@ -211,7 +204,7 @@ export function verifyPasswordAndGetRole(password: string): AuthRole | null {
 		return null;
 	}
 	const auditor = envTrim('AUDITOR_PASSWORD');
-	if (auditor && timingEq(password, auditor)) return 'auditor';
+	if (auditor && timingSafeEqualString(password, auditor)) return 'auditor';
 	return null;
 }
 

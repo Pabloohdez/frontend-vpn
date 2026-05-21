@@ -1,6 +1,7 @@
 import { authenticator } from 'otplib';
 import QRCode from 'qrcode';
-import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
+import { randomBytes, createHash } from 'node:crypto';
+import { timingSafeEqualString } from '$lib/server/crypto-utils';
 import { readTotpState, writeTotpState } from '$lib/server/totp-store';
 
 authenticator.options = { window: 1 };
@@ -16,14 +17,6 @@ function makeRecoveryCodes(n = 10): string[] {
 		out.push(`${raw.slice(0, 5)}-${raw.slice(5, 10)}-${raw.slice(10, 15)}-${raw.slice(15, 20)}`);
 	}
 	return out;
-}
-
-function safeEq(a: string, b: string) {
-	try {
-		return timingSafeEqual(Buffer.from(a), Buffer.from(b));
-	} catch {
-		return false;
-	}
 }
 
 function sha256(s: string) {
@@ -80,7 +73,7 @@ function verifyCodeAgainstState(
 	if (!code) return { ok: false, used_recovery: false };
 
 	const hashed = sha256(code);
-	const idx = state.recovery_codes.findIndex((h) => safeEq(h, hashed));
+	const idx = state.recovery_codes.findIndex((h) => timingSafeEqualString(h, hashed));
 	if (idx >= 0) {
 		const full = readTotpState();
 		if (full) {

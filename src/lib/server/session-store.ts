@@ -1,4 +1,5 @@
-import { randomBytes, timingSafeEqual, createHash } from 'node:crypto';
+import { randomBytes, createHash } from 'node:crypto';
+import { timingSafeEqualString } from '$lib/server/crypto-utils';
 import { getRedis } from '$lib/server/redis';
 import type { AuthRole } from '$lib/server/auth';
 
@@ -120,11 +121,5 @@ export async function revokeSessionByRefresh(refreshToken: string) {
 	return true;
 }
 
-export function safeEq(a: string, b: string) {
-	try {
-		return timingSafeEqual(Buffer.from(a), Buffer.from(b));
-	} catch {
-		return false;
-	}
-}
+export const safeEq = timingSafeEqualString;
 

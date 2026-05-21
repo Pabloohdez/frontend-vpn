@@ -113,6 +113,7 @@ servidor de SvelteKit con cookies de sesión firmadas y control de roles.
 | **auditor** | Dirección / tutor | Leer dashboard, DNS, auditoría, seguridad | Cambiar listas ni bloquear |
 
 Matriz detallada y checklist de seguridad: [`docs/SECURITY.md`](./docs/SECURITY.md).  
+Hoja de ruta operativa (PDF de mejoras): [`docs/MEJORAS.md`](./docs/MEJORAS.md).  
 Permisos en código: `src/lib/server/permissions.ts` (también en `/api/auth/me` → `permissions[]`).
 
 **Políticas por CN OpenVPN:** categorías DNS y **horarios de corte de internet** por **IP** o **CN**. **Grupos Pi-hole personalizados** (crear y asignar por horario en Ajustes). Guía de roles (**Markdown** o **PDF**).
