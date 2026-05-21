@@ -30,6 +30,7 @@
 	let error = $state<string | null>(null);
 	let needsAuth = $state(false);
 	let isAdmin = $state(false);
+	let canWriteSchedules = $state(false);
 	let netmonitorConfigured = $state(false);
 	let netmonitorReachable = $state(false);
 	let search = $state('');
@@ -101,6 +102,8 @@
 		if (meRes.ok) {
 			const me = await meRes.json();
 			isAdmin = Boolean(me?.isAdmin);
+			const perms = (me as { permissions?: string[] })?.permissions ?? [];
+			canWriteSchedules = perms.includes('block_schedules_write');
 		}
 		if (!devRes.ok) {
 			const fail = await describeFetchResponse(devRes, 'No se pudo cargar los dispositivos.');
@@ -364,6 +367,6 @@
 			{/if}
 		</section>
 
-		<BlockSchedulePanel {isAdmin} />
+		<BlockSchedulePanel canWrite={canWriteSchedules || isAdmin} />
 	{/if}
 </main>

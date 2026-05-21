@@ -4,9 +4,13 @@
 	import { apiFetch } from '$lib/api-client';
 	import { describeApiFailure } from '$lib/api-errors';
 
+	type TargetType = 'ip' | 'vpn_cn';
+
 	type Schedule = {
 		id: string;
+		target_type: TargetType;
 		ip: string;
+		vpn_cn: string | null;
 		label: string | null;
 		enabled: boolean;
 		days: number[];
@@ -15,19 +19,22 @@
 	};
 
 	let {
-		isAdmin = false,
+		canWrite = false,
 		presetIp = '',
 		presetLabel = ''
-	}: { isAdmin?: boolean; presetIp?: string; presetLabel?: string } = $props();
+	}: { canWrite?: boolean; presetIp?: string; presetLabel?: string } = $props();
 
 	let schedules = $state<Schedule[]>([]);
+	let vpnCns = $state<string[]>([]);
 	let loading = $state(true);
 	let saving = $state(false);
 	let showForm = $state(false);
 	let loadError = $state<string | null>(null);
 	let formError = $state<string | null>(null);
 
+	let formTarget = $state<TargetType>('ip');
 	let formIp = $state('');
+	let formCn = $state('');
 	let formLabel = $state('');
 	let formStart = $state('22:00');
 	let formEnd = $state('07:00');
@@ -38,10 +45,16 @@
 
 	$effect(() => {
 		if (presetIp) {
+			formTarget = 'ip';
 			formIp = presetIp;
 			formLabel = presetLabel;
 		}
 	});
+
+	function scheduleTargetLabel(s: Schedule): string {
+		if (s.target_type === 'vpn_cn' && s.vpn_cn) return `CN ${s.vpn_cn}`;
+		return s.ip || '—';
+	}
 
 	function toggleDay(d: number) {
 		formDays = formDays.includes(d) ? formDays.filter((x) => x !== d) : [...formDays, d].sort();
@@ -54,6 +67,7 @@
 		if (res.ok) {
 			const j = await res.json();
 			schedules = j.schedules ?? [];
+			vpnCns = j.vpn_cns ?? [];
 		} else {
 			const body = await res.json().catch(() => null);
 			const fail = describeApiFailure(res.status, body, 'No se pudieron cargar los horarios.');
@@ -64,14 +78,18 @@
 	}
 
 	async function save() {
-		if (!isAdmin || saving || !formIp.trim()) return;
+		if (!canWrite || saving) return;
+		if (formTarget === 'ip' && !formIp.trim()) return;
+		if (formTarget === 'vpn_cn' && !formCn.trim()) return;
 		saving = true;
 		formError = null;
 		const res = await apiFetch('/api/admin/block-schedules', {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({
-				ip: formIp.trim(),
+				target_type: formTarget,
+				ip: formTarget === 'ip' ? formIp.trim() : '',
+				vpn_cn: formTarget === 'vpn_cn' ? formCn.trim() : null,
 				label: formLabel.trim() || null,
 				start: formStart,
 				end: formEnd,
@@ -87,11 +105,13 @@
 			return;
 		}
 		showForm = false;
+		formIp = '';
+		formCn = '';
 		await load();
 	}
 
 	async function remove(id: string) {
-		if (!isAdmin || !confirm('¿Eliminar este horario?')) return;
+		if (!canWrite || !confirm('¿Eliminar este horario?')) return;
 		formError = null;
 		const res = await apiFetch(`/api/admin/block-schedules?id=${encodeURIComponent(id)}`, {
 			method: 'DELETE'
@@ -108,7 +128,7 @@
 	onMount(load);
 </script>
 
-{#if isAdmin}
+{#if canWrite}
 	<section class="panel blockSched" aria-label={t('schedules.title')}>
 		<div class="blockSched__head">
 			<h2 class="panel__h2">{t('schedules.title')}</h2>
@@ -116,6 +136,10 @@
 				{showForm ? '✕' : t('schedules.add')}
 			</button>
 		</div>
+		<p class="muted blockSched__hint">
+			Corta internet por horario en Pi-hole. Puedes usar <strong>IP</strong> o <strong>usuario VPN (CN)</strong>
+			(igual que en categorías).
+		</p>
 
 		{#if loadError}
 			<p class="blockSched__error" role="alert">{loadError}</p>
@@ -126,11 +150,40 @@
 		{/if}
 
 		{#if showForm}
-			<form class="blockSched__form" onsubmit={(e) => { e.preventDefault(); save(); }}>
-				<label class="blockSched__field">
-					<span>IP</span>
-					<input class="input mono" bind:value={formIp} required />
-				</label>
+			<form
+				class="blockSched__form"
+				onsubmit={(e) => {
+					e.preventDefault();
+					save();
+				}}
+			>
+				<fieldset class="blockSched__target">
+					<legend>Aplicar a</legend>
+					<label class="blockSched__radio">
+						<input type="radio" name="sched-target" value="ip" bind:group={formTarget} />
+						IP
+					</label>
+					<label class="blockSched__radio">
+						<input type="radio" name="sched-target" value="vpn_cn" bind:group={formTarget} />
+						Usuario VPN (CN)
+					</label>
+				</fieldset>
+				{#if formTarget === 'ip'}
+					<label class="blockSched__field">
+						<span>IP</span>
+						<input class="input mono" bind:value={formIp} required />
+					</label>
+				{:else}
+					<label class="blockSched__field">
+						<span>CN OpenVPN</span>
+						<input class="input mono" list="sched-cn-list" bind:value={formCn} required />
+						<datalist id="sched-cn-list">
+							{#each vpnCns as cn (cn)}
+								<option value={cn}></option>
+							{/each}
+						</datalist>
+					</label>
+				{/if}
 				<label class="blockSched__field">
 					<span>Etiqueta</span>
 					<input class="input" bind:value={formLabel} />
@@ -149,11 +202,7 @@
 					<legend>{t('schedules.days')}</legend>
 					{#each DAY_LABELS as lab, i (i)}
 						<label class="blockSched__day">
-							<input
-								type="checkbox"
-								checked={formDays.includes(i)}
-								onchange={() => toggleDay(i)}
-							/>
+							<input type="checkbox" checked={formDays.includes(i)} onchange={() => toggleDay(i)} />
 							{lab}
 						</label>
 					{/each}
@@ -162,7 +211,11 @@
 					<input type="checkbox" bind:checked={formEnabled} />
 					{t('schedules.enabled')}
 				</label>
-				<button type="submit" class="btn btnAccent" disabled={saving}>
+				<button
+					type="submit"
+					class="btn btnAccent"
+					disabled={saving || (formTarget === 'ip' ? !formIp.trim() : !formCn.trim())}
+				>
 					{saving ? t('common.loading') : t('schedules.save')}
 				</button>
 			</form>
@@ -177,8 +230,8 @@
 				{#each schedules as s (s.id)}
 					<li class="blockSched__item" class:blockSched__item--off={!s.enabled}>
 						<div class="blockSched__itemHead">
-							<strong>{s.label ?? s.ip}</strong>
-							<span class="mono muted">{s.ip}</span>
+							<strong>{s.label ?? scheduleTargetLabel(s)}</strong>
+							<span class="mono muted">{scheduleTargetLabel(s)}</span>
 						</div>
 						<div class="blockSched__itemMeta muted">
 							{s.start} – {s.end}
@@ -198,6 +251,11 @@
 {/if}
 
 <style>
+	.blockSched__hint {
+		margin: 0 0 12px;
+		font-size: 12px;
+		line-height: 1.45;
+	}
 	.blockSched__error {
 		margin: 0 0 10px;
 		font-size: 12px;
@@ -218,6 +276,24 @@
 		padding: 12px;
 		border-radius: 10px;
 		border: 1px dashed var(--border-subtle, rgba(0, 0, 0, 0.12));
+	}
+	.blockSched__target {
+		border: none;
+		padding: 0;
+		margin: 0;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 12px;
+	}
+	.blockSched__target legend {
+		width: 100%;
+		font-size: 12px;
+	}
+	.blockSched__radio {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		font-size: 13px;
 	}
 	.blockSched__row {
 		display: grid;

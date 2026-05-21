@@ -2,11 +2,14 @@ import { log } from '$lib/server/log';
 import {
 	isScheduleBlockedRecord,
 	listBlockSchedules,
+	migrateBlockSchedule,
 	scheduleActiveNow,
 	SCHEDULE_BLOCKED_BY_PREFIX
 } from '$lib/server/block-schedules-store';
 import { getInternetBlock, listInternetBlocks } from '$lib/server/internet-blocks-store';
 import { blockInternetForIp, unblockInternetForIp } from '$lib/server/pihole-internet-block';
+import { resolveTargetIps } from '$lib/server/policy-target';
+import { readPrunedIpCnHistory, refreshIpCnHistoryBestEffort } from '$lib/server/vpn-ipcn-history';
 
 let lastTick = 0;
 let ticking = false;
@@ -27,9 +30,16 @@ export async function tickBlockSchedules(fetchFn: typeof fetch, force = false): 
 		const schedules = listBlockSchedules().filter((s) => s.enabled);
 		if (schedules.length === 0) return;
 
+		await refreshIpCnHistoryBestEffort(fetchFn);
+		const history = readPrunedIpCnHistory();
+
 		const activeByIp = new Map<string, string>(); // ip -> scheduleId
 		for (const s of schedules) {
-			if (scheduleActiveNow(s)) activeByIp.set(s.ip, s.id);
+			if (!scheduleActiveNow(s)) continue;
+			const migrated = migrateBlockSchedule(s);
+			for (const ip of resolveTargetIps(migrated, history)) {
+				activeByIp.set(ip, migrated.id);
+			}
 		}
 
 		for (const [ip, scheduleId] of activeByIp) {

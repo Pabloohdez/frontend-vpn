@@ -80,7 +80,7 @@ Leyenda: ✅ Hecho · ⚠️ Parcial · ❌ No / no aplica
 |-----------|--------|----------------|
 | Ban por dominio / wildcard | ✅ | Listas Pi-hole, API dominio, UI DNS y listas. |
 | Bloqueo internet por IP (Pi-hole) | ✅ | `src/lib/server/internet-blocks-store.ts`, UI bloqueos / DNS. |
-| Horarios por dispositivo (cortar internet) | ✅ | `src/lib/server/block-schedules-store.ts`, `src/lib/BlockSchedulePanel.svelte` |
+| Horarios por dispositivo (cortar internet) | ✅ | `block-schedules-store.ts`, `BlockSchedulePanel.svelte`; por **IP o CN VPN**. |
 | Categorías predefinidas (social, streaming, …) | ⚠️ | `category-store.ts` — dominios editables en Ajustes. |
 | Políticas categoría + IP + horario | ⚠️ | Backend `category-runner.ts` + UI `src/lib/CategoryPoliciesAdmin.svelte` en Ajustes. |
 | Políticas por usuario VPN (CN) | ⚠️ | `target_type: vpn_cn` en políticas; resuelve IPs vía `vpn-ipcn-history.json`. |

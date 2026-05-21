@@ -2,11 +2,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { env } from '$env/dynamic/private';
+import { isValidPolicyIp, isValidVpnCn } from '$lib/server/policy-target';
+
+export type BlockScheduleTarget = 'ip' | 'vpn_cn';
 
 /** 0 = domingo … 6 = sábado (convención JS Date.getDay). */
 export type BlockSchedule = {
 	id: string;
+	target_type: BlockScheduleTarget;
 	ip: string;
+	vpn_cn: string | null;
 	label: string | null;
 	enabled: boolean;
 	/** Días activos (0-6). Vacío = todos los días. */
@@ -32,7 +37,7 @@ function readStore(): Store {
 		const raw = fs.readFileSync(p, 'utf-8');
 		const j = JSON.parse(raw) as Store;
 		if (!j || !Array.isArray(j.schedules)) return { schedules: [] };
-		return j;
+		return { schedules: j.schedules.map(migrateBlockSchedule) };
 	} catch {
 		return { schedules: [] };
 	}
@@ -52,6 +57,11 @@ export function getBlockSchedule(id: string): BlockSchedule | null {
 	return readStore().schedules.find((s) => s.id === id) ?? null;
 }
 
+export function migrateBlockSchedule(s: BlockSchedule): BlockSchedule {
+	if (s.target_type === 'vpn_cn' || s.target_type === 'ip') return s;
+	return { ...s, target_type: 'ip', vpn_cn: s.vpn_cn ?? null };
+}
+
 export function schedulesForIp(ip: string): BlockSchedule[] {
 	const norm = ip.trim();
 	return readStore().schedules.filter((s) => s.ip === norm);
@@ -59,7 +69,9 @@ export function schedulesForIp(ip: string): BlockSchedule[] {
 
 export type UpsertScheduleInput = {
 	id?: string;
-	ip: string;
+	target_type?: BlockScheduleTarget;
+	ip?: string;
+	vpn_cn?: string | null;
 	label?: string | null;
 	enabled?: boolean;
 	days?: number[];
@@ -80,15 +92,26 @@ export function upsertBlockSchedule(input: UpsertScheduleInput): BlockSchedule {
 	const start = parseTimeHm(input.start);
 	const end = parseTimeHm(input.end);
 	if (!start || !end) throw new Error('invalid_time');
-	const ip = input.ip.trim();
-	if (!ip) throw new Error('invalid_ip');
+	const target_type: BlockScheduleTarget = input.target_type === 'vpn_cn' ? 'vpn_cn' : 'ip';
+	let ip = '';
+	let vpn_cn: string | null = null;
+	if (target_type === 'vpn_cn') {
+		const cn = (input.vpn_cn ?? '').trim();
+		if (!isValidVpnCn(cn)) throw new Error('invalid_cn');
+		vpn_cn = cn;
+	} else {
+		ip = (input.ip ?? '').trim();
+		if (!isValidPolicyIp(ip)) throw new Error('invalid_ip');
+	}
 	const days = (input.days ?? []).map((d) => Math.floor(d)).filter((d) => d >= 0 && d <= 6);
 	const now = new Date().toISOString();
 	const store = readStore();
 	const existingIdx = input.id ? store.schedules.findIndex((s) => s.id === input.id) : -1;
 	const rec: BlockSchedule = {
 		id: input.id && existingIdx >= 0 ? input.id : randomUUID(),
+		target_type,
 		ip,
+		vpn_cn,
 		label: input.label?.trim() || null,
 		enabled: input.enabled !== false,
 		days,

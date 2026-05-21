@@ -3,16 +3,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { env } from '$env/dynamic/private';
 
-const CN_RE = /^[a-zA-Z0-9.@_-]+$/;
-
-function isValidVpnCn(cn: string): boolean {
-	const s = cn.trim();
-	return s.length >= 1 && s.length <= 64 && CN_RE.test(s) && !s.startsWith('.') && !s.startsWith('-');
-}
-
-function isValidPolicyIp(ip: string): boolean {
-	return /^\d{1,3}(\.\d{1,3}){3}$/.test(ip.trim());
-}
+import { isValidPolicyIp, isValidVpnCn } from '$lib/server/policy-target';
 
 export type CategoryId = 'social' | 'streaming' | 'gaming' | 'gambling' | 'malware';
 

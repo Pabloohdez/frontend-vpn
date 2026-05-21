@@ -8,6 +8,7 @@ import {
 	upsertBlockSchedule
 } from '$lib/server/block-schedules-store';
 import { tickBlockSchedules } from '$lib/server/block-schedule-runner';
+import { listKnownVpnCns } from '$lib/server/category-policy-resolve';
 import { rateLimitKey } from '$lib/server/rate-limit';
 import { writeCriticalAudit } from '$lib/server/audit-signed';
 
@@ -17,12 +18,17 @@ export const GET: RequestHandler = async ({ request }) => {
 	if (!requirePermissionFromRequestCookie(request.headers.get('cookie'), 'read').ok) {
 		return json({ error: 'unauthorized' }, { status: 401 });
 	}
-	return json({ schedules: listBlockSchedules() }, { headers: { 'cache-control': 'no-store' } });
+	return json(
+		{ schedules: listBlockSchedules(), vpn_cns: listKnownVpnCns() },
+		{ headers: { 'cache-control': 'no-store' } }
+	);
 };
 
 type Body = {
 	id?: string;
+	target_type?: 'ip' | 'vpn_cn';
 	ip?: string;
+	vpn_cn?: string | null;
 	label?: string | null;
 	enabled?: boolean;
 	days?: number[];
@@ -44,13 +50,22 @@ export const POST: RequestHandler = async ({ request, fetch, getClientAddress })
 	}
 	const role = getRoleFromRequestCookie(request.headers.get('cookie')) ?? 'admin';
 	const body = (await request.json().catch(() => null)) as Body | null;
-	if (!body?.ip?.trim() || !body.start || !body.end) {
-		return json({ error: 'bad_request', message: 'ip, start y end requeridos' }, { status: 400 });
+	const target_type = body?.target_type === 'vpn_cn' ? 'vpn_cn' : 'ip';
+	if (!body?.start || !body.end) {
+		return json({ error: 'bad_request', message: 'start y end requeridos' }, { status: 400 });
+	}
+	if (target_type === 'vpn_cn' && !body.vpn_cn?.trim()) {
+		return json({ error: 'bad_request', message: 'vpn_cn requerido' }, { status: 400 });
+	}
+	if (target_type === 'ip' && !body.ip?.trim()) {
+		return json({ error: 'bad_request', message: 'ip requerida' }, { status: 400 });
 	}
 	try {
 		const rec = upsertBlockSchedule({
 			id: body.id,
+			target_type,
 			ip: body.ip,
+			vpn_cn: body.vpn_cn,
 			label: body.label,
 			enabled: body.enabled,
 			days: body.days,
@@ -64,7 +79,14 @@ export const POST: RequestHandler = async ({ request, fetch, getClientAddress })
 			action: body.id ? 'block_schedule_update' : 'block_schedule_create',
 			success: true,
 			remote_ip: getClientAddress(),
-			details: { schedule_id: rec.id, ip: rec.ip, start: rec.start, end: rec.end }
+			details: {
+				schedule_id: rec.id,
+				target_type: rec.target_type,
+				ip: rec.ip || null,
+				vpn_cn: rec.vpn_cn,
+				start: rec.start,
+				end: rec.end
+			}
 		});
 		try {
 			await writeCriticalAudit({
@@ -73,7 +95,14 @@ export const POST: RequestHandler = async ({ request, fetch, getClientAddress })
 				action: body.id ? 'block_schedule_update' : 'block_schedule_create',
 				success: true,
 				remote_ip: getClientAddress(),
-				details: { schedule_id: rec.id, ip: rec.ip, start: rec.start, end: rec.end }
+				details: {
+					schedule_id: rec.id,
+					target_type: rec.target_type,
+					ip: rec.ip || null,
+					vpn_cn: rec.vpn_cn,
+					start: rec.start,
+					end: rec.end
+				}
 			});
 		} catch {
 			/* best-effort */
@@ -82,10 +111,15 @@ export const POST: RequestHandler = async ({ request, fetch, getClientAddress })
 		return json({ ok: true, schedule: rec }, { headers: { 'cache-control': 'no-store' } });
 	} catch (e) {
 		const msg = e instanceof Error ? e.message : 'error';
-		return json(
-			{ error: 'bad_request', message: msg === 'invalid_time' ? 'Horario inválido (HH:MM)' : msg },
-			{ status: 400 }
-		);
+		const hint =
+			msg === 'invalid_time'
+				? 'Horario inválido (HH:MM)'
+				: msg === 'invalid_ip'
+					? 'IP inválida'
+					: msg === 'invalid_cn'
+						? 'CN VPN inválido'
+						: msg;
+		return json({ error: 'bad_request', message: hint }, { status: 400 });
 	}
 };
 

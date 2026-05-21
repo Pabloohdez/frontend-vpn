@@ -217,6 +217,10 @@
 				<span class="settingsQuick__label">Privacidad</span>
 				<span class="settingsQuick__hint muted">Documentación interna</span>
 			</a>
+			<a href="/api/admin/roles-guide" class="settingsQuick__card" download="roles-panel-vpn.md">
+				<span class="settingsQuick__label">Guía de roles</span>
+				<span class="settingsQuick__hint muted">Markdown para tutor / memoria</span>
+			</a>
 		</div>
 	</section>
 
