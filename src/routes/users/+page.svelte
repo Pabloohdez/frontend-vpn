@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import './page.css';
-	import { csrfHeaders } from '$lib/csrf-client';
+	import { apiFetch } from '$lib/api-client';
 	import AuthGate from '$lib/AuthGate.svelte';
 	import { describeApiFailure, describeFetchResponse, noticeTtl } from '$lib/api-errors';
 
@@ -172,9 +172,8 @@
 
 	async function revoke(cn: string) {
 		setBusy(cn, { revoking: true });
-		const res = await fetch(`/api/admin/users?cn=${encodeURIComponent(cn)}`, {
-			method: 'DELETE',
-			headers: { ...csrfHeaders() }
+		const res = await apiFetch(`/api/admin/users?cn=${encodeURIComponent(cn)}`, {
+			method: 'DELETE'
 		});
 		if (!res.ok) {
 			const body = await res.json().catch(() => null);
@@ -197,9 +196,9 @@
 			return;
 		}
 		setBusy(cn, { hide: true });
-		const res = await fetch('/api/admin/revoked-hidden', {
+		const res = await apiFetch('/api/admin/revoked-hidden', {
 			method: 'PUT',
-			headers: { 'content-type': 'application/json', ...csrfHeaders() },
+			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ cn })
 		});
 		if (!res.ok) {
@@ -216,9 +215,9 @@
 
 	async function unhideRevokedFromList(cn: string) {
 		setBusy(cn, { unhide: true });
-		const res = await fetch('/api/admin/revoked-hidden', {
+		const res = await apiFetch('/api/admin/revoked-hidden', {
 			method: 'DELETE',
-			headers: { 'content-type': 'application/json', ...csrfHeaders() },
+			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ cn })
 		});
 		if (!res.ok) {
@@ -243,9 +242,9 @@
 			return;
 		}
 		creating = true;
-		const res = await fetch('/api/admin/users', {
+		const res = await apiFetch('/api/admin/users', {
 			method: 'POST',
-			headers: { 'content-type': 'application/json', ...csrfHeaders() },
+			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ cn, days_valid: days })
 		});
 		if (!res.ok) {
@@ -328,9 +327,9 @@
 			return;
 		}
 		const alias = next.trim();
-		const res = await fetch('/api/admin/user-aliases', {
+		const res = await apiFetch('/api/admin/user-aliases', {
 			method: 'PUT',
-			headers: { 'content-type': 'application/json', ...csrfHeaders() },
+			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ cn, alias: alias || null })
 		});
 		if (!res.ok) {

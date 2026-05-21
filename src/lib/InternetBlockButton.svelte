@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { csrfHeaders } from '$lib/csrf-client';
+	import { apiFetch } from '$lib/api-client';
 	import { apiErrorMessage } from '$lib/api-errors';
 	import { toast } from '$lib/toast.svelte';
 
@@ -43,9 +43,9 @@
 			busy = false;
 			return;
 		}
-		const res = await fetch('/api/admin/internet-block', {
+		const res = await apiFetch('/api/admin/internet-block', {
 			method: 'POST',
-			headers: { 'content-type': 'application/json', ...csrfHeaders() },
+			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ ip, op, label, cn })
 		});
 		const j = await res.json().catch(() => ({}));

@@ -42,7 +42,7 @@ Leyenda: ✅ Hecho · ⚠️ Parcial · ❌ No / no aplica
 | Requisito | Estado | Dónde / notas |
 |-----------|--------|----------------|
 | Rate limiting (auth, escritura) | ✅ | `src/lib/server/rate-limit.ts` — login, Pi-hole, panel-users, backup, 2FA, etc. |
-| Protección CSRF | ✅ | `csrf.ts` + `csrf-client.ts` + `apiFetch()` en `src/lib/api-client.ts`. Respuesta 403 JSON `csrf_invalid`. Login/refresh/logout exentos. |
+| Protección CSRF | ✅ | `apiFetch()` en todo el frontend mutante; `npm run check:csrf`. Login/refresh/logout exentos. |
 | CSP | ✅ | `svelte.config.js` — sin `upgrade-insecure-requests` en LAN HTTP. |
 | Validación de dominios (ban Pi-hole) | ✅ | `src/routes/api/admin/pihole/domain/+server.ts` — `normalizeDomain`, `isValidDomain`, escape en wildcards. |
 | Cabeceras X-Frame-Options, etc. | ✅ | `src/hooks.server.ts` |
@@ -108,7 +108,7 @@ sudo docker compose -f docker-compose.prod.yml up -d --build
 4. ~~CSRF~~ → `apiFetch()` + cobertura manual con `csrfHeaders()` en componentes existentes.
 5. ~~Threat intel URLhaus~~ → activar en `.env` y sincronizar desde Ajustes.
 6. ~~Renovar sesión automáticamente~~ → `SessionExpiryBanner` renueva con `/api/auth/refresh` si quedan menos de 5 min.
-7. HTTPS + HSTS cuando el panel salga de LAN solo HTTP.
+7. HTTPS + HSTS → guía en [`docs/HTTPS.md`](HTTPS.md) (`COOKIE_SECURE`, `TRUST_PROXY`, Caddy/nginx).
 
 ---
 

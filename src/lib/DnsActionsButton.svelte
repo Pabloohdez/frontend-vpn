@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { PiholeLists } from '$lib/pihole-lists';
 	import { isApplied as isAppliedShared } from '$lib/pihole-lists';
-	import { csrfHeaders } from '$lib/csrf-client';
+	import { apiFetch } from '$lib/api-client';
 	import { apiErrorMessage } from '$lib/api-errors';
 	import { toast } from '$lib/toast.svelte';
 
@@ -158,9 +158,9 @@
 		);
 		if (!ok) return;
 		netBusy = true;
-		const res = await fetch('/api/admin/internet-block', {
+		const res = await apiFetch('/api/admin/internet-block', {
 			method: 'POST',
-			headers: { 'content-type': 'application/json', ...csrfHeaders() },
+			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({
 				ip: op === 'unblock' ? ip : ip || undefined,
 				client: piholeClient || undefined,

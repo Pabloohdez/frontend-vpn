@@ -22,7 +22,7 @@
 	import SavedFiltersBar from '$lib/SavedFiltersBar.svelte';
 	import AuthGate from '$lib/AuthGate.svelte';
 	import { describeApiFailure } from '$lib/api-errors';
-	import { csrfHeaders } from '$lib/csrf-client';
+	import { apiFetch } from '$lib/api-client';
 
 	type DnsFilterState = {
 		q: string;
@@ -171,9 +171,9 @@
 		const key = domain;
 		if (list === 'black') setDomainBusy(key, mode === 'wildcard' ? { blockWild: true } : { block: true });
 		else setDomainBusy(key, mode === 'wildcard' ? { allowWild: true } : { allow: true });
-		const res = await fetch('/api/admin/pihole/domain', {
+		const res = await apiFetch('/api/admin/pihole/domain', {
 			method: 'POST',
-			headers: { 'content-type': 'application/json', ...csrfHeaders() },
+			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ domain, list, op: 'add', mode })
 		});
 		if (!res.ok) {
@@ -202,9 +202,9 @@
 		const key = domain;
 		if (list === 'black') setDomainBusy(key, mode === 'wildcard' ? { unblockWild: true } : { unblock: true });
 		else setDomainBusy(key, mode === 'wildcard' ? { unallowWild: true } : { unallow: true });
-		const res = await fetch('/api/admin/pihole/domain', {
+		const res = await apiFetch('/api/admin/pihole/domain', {
 			method: 'POST',
-			headers: { 'content-type': 'application/json', ...csrfHeaders() },
+			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ domain, list, op: 'remove', mode })
 		});
 		if (!res.ok) {

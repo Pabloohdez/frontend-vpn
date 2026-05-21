@@ -12,6 +12,7 @@
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"check:secrets": "node scripts/check-secrets.mjs",
+		"check:csrf": "node scripts/check-csrf-fetch.mjs",
 		"test:e2e": "playwright test",
 		"test:e2e:install": "playwright install --with-deps chromium",
 		"smoke:health": "node scripts/smoke-health.mjs",

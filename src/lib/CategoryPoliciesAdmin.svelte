@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { csrfHeaders } from '$lib/csrf-client';
+	import { apiFetch } from '$lib/api-client';
 	import { apiErrorMessage } from '$lib/api-errors';
 
 	type CategoryId = 'social' | 'streaming' | 'gaming' | 'gambling' | 'malware';
@@ -56,9 +56,9 @@
 		if (busy || !formIp.trim()) return;
 		busy = true;
 		err = null;
-		const res = await fetch('/api/admin/categories', {
+		const res = await apiFetch('/api/admin/categories', {
 			method: 'POST',
-			headers: { 'content-type': 'application/json', ...csrfHeaders() },
+			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({
 				type: 'policy',
 				policy: {
@@ -88,9 +88,8 @@
 		if (busy || !confirm('¿Eliminar esta política de categoría?')) return;
 		busy = true;
 		err = null;
-		const res = await fetch(`/api/admin/categories?policy_id=${encodeURIComponent(id)}`, {
-			method: 'DELETE',
-			headers: { ...csrfHeaders() }
+		const res = await apiFetch(`/api/admin/categories?policy_id=${encodeURIComponent(id)}`, {
+			method: 'DELETE'
 		});
 		const j = await res.json().catch(() => null);
 		busy = false;

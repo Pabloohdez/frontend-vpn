@@ -1,15 +1,14 @@
 import { browser } from '$app/environment';
-import { csrfHeaders } from '$lib/csrf-client';
+import { apiFetch } from '$lib/api-client';
 
 /** Cierra sesión en el servidor y vuelve al selector OpenVPN / Pi-hole / Auditoría. */
 export async function logoutAndGoHome(): Promise<void> {
 	if (!browser) return;
 
 	try {
-		await fetch('/api/auth/logout', {
+		await apiFetch('/api/auth/logout', {
 			method: 'POST',
-			credentials: 'same-origin',
-			headers: { 'cache-control': 'no-store', ...csrfHeaders() }
+			headers: { 'cache-control': 'no-store' }
 		});
 	} catch {
 		/* Redirigimos igual: el usuario debe poder salir aunque falle la API */

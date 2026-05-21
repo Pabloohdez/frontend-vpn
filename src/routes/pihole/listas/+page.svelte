@@ -3,7 +3,7 @@
 	import './page.css';
 	import type { PiholeLists } from '$lib/pihole-lists';
 	import { isApplied as isAppliedShared, normalizeDomain } from '$lib/pihole-lists';
-	import { csrfHeaders } from '$lib/csrf-client';
+	import { apiFetch } from '$lib/api-client';
 	import AuthGate from '$lib/AuthGate.svelte';
 	import { isUnauthorizedStatus, unauthorizedMessage } from '$lib/auth-client';
 	import { describeApiFailure } from '$lib/api-errors';
@@ -126,9 +126,9 @@
 			return;
 		}
 		busy = true;
-		const res = await fetch('/api/admin/pihole/domain', {
+		const res = await apiFetch('/api/admin/pihole/domain', {
 			method: 'POST',
-			headers: { 'content-type': 'application/json', ...csrfHeaders() },
+			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ domain, list, op, mode })
 		});
 		const body = await res.json().catch(() => null);

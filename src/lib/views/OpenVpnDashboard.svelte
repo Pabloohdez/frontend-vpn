@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	import { logoutAndGoHome } from '$lib/logout-client';
-	import { csrfHeaders } from '$lib/csrf-client';
+	import { apiFetch } from '$lib/api-client';
 	import { apiErrorMessage, describeFetchResponse } from '$lib/api-errors';
 	import InternetBlockButton from '$lib/InternetBlockButton.svelte';
 	import '../../routes/dashboard.css';
@@ -221,9 +221,9 @@
 	}
 
 	async function kick(cn: string) {
-		const res = await fetch('/api/admin/kick', {
+		const res = await apiFetch('/api/admin/kick', {
 			method: 'POST',
-			headers: { 'content-type': 'application/json', ...csrfHeaders() },
+			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ cn })
 		});
 		if (!res.ok) {
@@ -237,9 +237,8 @@
 	}
 
 	async function revoke(cn: string) {
-		const res = await fetch(`/api/admin/users?cn=${encodeURIComponent(cn)}`, {
-			method: 'DELETE',
-			headers: { ...csrfHeaders() }
+		const res = await apiFetch(`/api/admin/users?cn=${encodeURIComponent(cn)}`, {
+			method: 'DELETE'
 		});
 		if (!res.ok) {
 			const body = await res.json().catch(() => null);

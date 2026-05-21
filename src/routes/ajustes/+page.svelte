@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { logoutAndGoHome } from '$lib/logout-client';
-	import { csrfHeaders } from '$lib/csrf-client';
+	import { apiFetch } from '$lib/api-client';
 	import { apiErrorMessage, describeFetchResponse } from '$lib/api-errors';
 	import PanelUsersAdmin from '$lib/PanelUsersAdmin.svelte';
 	import CategoryPoliciesAdmin from '$lib/CategoryPoliciesAdmin.svelte';
@@ -114,9 +114,9 @@
 		totpBusy = true;
 		totpError = null;
 		try {
-			const res = await fetch('/api/admin/2fa/enable', {
+			const res = await apiFetch('/api/admin/2fa/enable', {
 				method: 'POST',
-				headers: { 'content-type': 'application/json', ...csrfHeaders() },
+				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify({ code: totpCode })
 			});
 			const j = await res.json().catch(() => null);
@@ -139,9 +139,9 @@
 			.split('\n')
 			.map((x) => x.trim())
 			.filter(Boolean);
-		const res = await fetch('/api/admin/categories', {
+		const res = await apiFetch('/api/admin/categories', {
 			method: 'POST',
-			headers: { 'content-type': 'application/json', ...csrfHeaders() },
+			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ type: 'domains', category_id: id, domains })
 		});
 		const j = await res.json().catch(() => null);
@@ -177,7 +177,15 @@
 		},
 		{
 			title: 'Auditoría',
-			vars: ['AUDIT_DB_PATH']
+			vars: ['AUDIT_DB_PATH', 'MASTER_KEY']
+		},
+		{
+			title: 'Threat intel y HTTPS',
+			vars: [
+				'THREAT_INTEL_ENABLED',
+				'URLHAUS_AUTH_KEY',
+				'COOKIE_SECURE / TRUST_PROXY (ver docs/HTTPS.md)'
+			]
 		}
 	] as const;
 </script>

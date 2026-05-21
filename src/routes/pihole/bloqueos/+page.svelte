@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import BlockSchedulePanel from '$lib/BlockSchedulePanel.svelte';
-	import { csrfHeaders } from '$lib/csrf-client';
+	import { apiFetch } from '$lib/api-client';
 	import AuthGate from '$lib/AuthGate.svelte';
 	import { apiErrorMessage, describeFetchResponse } from '$lib/api-errors';
 	import { toast } from '$lib/toast.svelte';
@@ -127,9 +127,9 @@
 		);
 		if (!ok) return;
 		busyIp = d.ip;
-		const res = await fetch('/api/admin/internet-block', {
+		const res = await apiFetch('/api/admin/internet-block', {
 			method: 'POST',
-			headers: { 'content-type': 'application/json', ...csrfHeaders() },
+			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({
 				ip: d.ip,
 				op,

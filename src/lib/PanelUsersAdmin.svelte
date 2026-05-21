@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { csrfHeaders } from '$lib/csrf-client';
+	import { apiFetch } from '$lib/api-client';
 	import { apiErrorMessage } from '$lib/api-errors';
 
 	type PanelUserRow = {
@@ -31,7 +31,7 @@
 	async function load() {
 		loading = true;
 		err = null;
-		const res = await fetch('/api/admin/panel-users', { headers: { 'cache-control': 'no-cache' } });
+		const res = await apiFetch('/api/admin/panel-users', { headers: { 'cache-control': 'no-cache' } });
 		const j = await res.json().catch(() => null);
 		if (!res.ok) {
 			err = apiErrorMessage(res.status, j, 'No se pudo cargar los usuarios del panel.');
@@ -48,9 +48,9 @@
 		busy = true;
 		err = null;
 		okMsg = null;
-		const res = await fetch('/api/admin/panel-users', {
+		const res = await apiFetch('/api/admin/panel-users', {
 			method: 'POST',
-			headers: { 'content-type': 'application/json', ...csrfHeaders() },
+			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({
 				username: newUsername.trim(),
 				password: newPassword,
@@ -74,9 +74,9 @@
 		busy = true;
 		err = null;
 		okMsg = null;
-		const res = await fetch('/api/admin/panel-users', {
+		const res = await apiFetch('/api/admin/panel-users', {
 			method: 'PUT',
-			headers: { 'content-type': 'application/json', ...csrfHeaders() },
+			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ id: u.id, enabled: !u.enabled })
 		});
 		const j = await res.json().catch(() => null);
@@ -97,9 +97,9 @@
 		}
 		busy = true;
 		err = null;
-		const res = await fetch('/api/admin/panel-users', {
+		const res = await apiFetch('/api/admin/panel-users', {
 			method: 'PUT',
-			headers: { 'content-type': 'application/json', ...csrfHeaders() },
+			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ id: u.id, password: pw })
 		});
 		const j = await res.json().catch(() => null);
@@ -124,9 +124,9 @@
 		}
 		busy = true;
 		err = null;
-		const res = await fetch('/api/admin/panel-users', {
+		const res = await apiFetch('/api/admin/panel-users', {
 			method: 'PUT',
-			headers: { 'content-type': 'application/json', ...csrfHeaders() },
+			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ id: u.id, role })
 		});
 		const j = await res.json().catch(() => null);
@@ -142,9 +142,8 @@
 		if (!confirm(`¿Eliminar el usuario «${u.username}»? No podrá volver a entrar.`)) return;
 		busy = true;
 		err = null;
-		const res = await fetch(`/api/admin/panel-users?id=${encodeURIComponent(u.id)}`, {
-			method: 'DELETE',
-			headers: { ...csrfHeaders() }
+		const res = await apiFetch(`/api/admin/panel-users?id=${encodeURIComponent(u.id)}`, {
+			method: 'DELETE'
 		});
 		const j = await res.json().catch(() => null);
 		busy = false;

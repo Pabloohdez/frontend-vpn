@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { onMount } from 'svelte';
-	import { csrfHeaders } from '$lib/csrf-client';
+	import { apiFetch } from '$lib/api-client';
 	import { apiErrorMessage } from '$lib/api-errors';
 	import { logoutAndGoHome } from '$lib/logout-client';
 
@@ -79,9 +79,9 @@
 		busy = true;
 		err = null;
 		try {
-			const res = await fetch('/api/admin/2fa/enable', {
+			const res = await apiFetch('/api/admin/2fa/enable', {
 				method: 'POST',
-				headers: { 'content-type': 'application/json', ...csrfHeaders() },
+				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify({ code: verifyCode.trim() })
 			});
 			const j = await res.json().catch(() => null);

@@ -65,12 +65,17 @@ function intervalMs(): number {
 	return hours * 60 * 60 * 1000;
 }
 
-function feedUrl(): string | null {
+function feedUrls(): string[] {
 	const custom = (env.URLHAUS_HOSTFILE_URL ?? '').trim();
-	if (custom) return custom;
+	if (custom) return [custom];
 	const key = (env.URLHAUS_AUTH_KEY ?? '').trim();
-	if (!key) return null;
-	return `https://urlhaus-api.abuse.ch/v2/hostfile/${encodeURIComponent(key)}/hostfile.txt`;
+	if (!key) return [];
+	const enc = encodeURIComponent(key);
+	return [
+		`https://urlhaus-api.abuse.ch/v2/hostfile/${enc}/hostfile.txt`,
+		`https://urlhaus-api.abuse.ch/v2/files/exports/${enc}/hostfile.txt`,
+		`https://urlhaus-api.abuse.ch/v2/download/hostfile/${enc}/`
+	];
 }
 
 /** Normaliza y valida un nombre de host (FQDN). */
@@ -147,8 +152,8 @@ export async function syncUrlhausMalwareDomains(
 		return { ok: true, skipped: true, reason: 'THREAT_INTEL_ENABLED no está activo' };
 	}
 
-	const url = feedUrl();
-	if (!url) {
+	const urls = feedUrls();
+	if (!urls.length) {
 		const msg =
 			'Configura URLHAUS_AUTH_KEY (cuenta gratuita abuse.ch) o URLHAUS_HOSTFILE_URL en .env';
 		writeState({ ...readState(), lastError: msg, lastSyncAt: new Date().toISOString() });
@@ -157,30 +162,35 @@ export async function syncUrlhausMalwareDomains(
 
 	const headers: Record<string, string> = { 'User-Agent': 'fronted-vpn-panel/1.0' };
 	const key = (env.URLHAUS_AUTH_KEY ?? '').trim();
-	if (key && !url.includes(key)) {
-		headers['Auth-Key'] = key;
-	}
+	if (key) headers['Auth-Key'] = key;
 
-	let res: Response;
-	try {
-		res = await fetchFn(url, { headers, signal: AbortSignal.timeout(120_000) });
-	} catch (e) {
-		const msg = e instanceof Error ? e.message : 'Error de red al descargar feed';
-		writeState({ ...readState(), lastError: msg, lastSyncAt: new Date().toISOString() });
+	let text = '';
+	let source = urls[0];
+	let lastStatus = 0;
+	for (const url of urls) {
+		source = url;
+		try {
+			const ctrl = typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal ? AbortSignal.timeout(120_000) : undefined;
+			const res = await fetchFn(url, { headers, signal: ctrl });
+			lastStatus = res.status;
+			if (!res.ok) continue;
+			text = await res.text();
+			if (text.trim().length > 0) break;
+		} catch {
+			continue;
+		}
+	}
+	if (!text.trim()) {
+		const msg = lastStatus
+			? `URLhaus respondió HTTP ${lastStatus} en todas las URLs probadas`
+			: 'Error de red al descargar feed URLhaus';
+		writeState({ ...readState(), lastError: msg, lastSyncAt: new Date().toISOString(), source });
 		return { ok: false, error: msg };
 	}
-
-	if (!res.ok) {
-		const msg = `URLhaus respondió HTTP ${res.status}`;
-		writeState({ ...readState(), lastError: msg, lastSyncAt: new Date().toISOString(), source: url });
-		return { ok: false, error: msg };
-	}
-
-	const text = await res.text();
 	const domains = parseThreatFeedText(text);
 	if (!domains.length) {
 		const msg = 'El feed no contenía dominios parseables';
-		writeState({ ...readState(), lastError: msg, lastSyncAt: new Date().toISOString(), source: url });
+		writeState({ ...readState(), lastError: msg, lastSyncAt: new Date().toISOString(), source });
 		return { ok: false, error: msg };
 	}
 
@@ -190,10 +200,10 @@ export async function syncUrlhausMalwareDomains(
 		lastDomainCount: total,
 		lastAdded: added,
 		lastError: null,
-		source: url
+		source
 	};
 	writeState(state);
-	return { ok: true, skipped: false, added, total, fetched: domains.length, source: url };
+	return { ok: true, skipped: false, added, total, fetched: domains.length, source };
 }
 
 let lastTickMs = 0;
