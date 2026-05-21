@@ -3,6 +3,8 @@
 	import { logoutAndGoHome } from '$lib/logout-client';
 	import { csrfHeaders } from '$lib/csrf-client';
 	import { apiErrorMessage, describeFetchResponse } from '$lib/api-errors';
+	import PanelUsersAdmin from '$lib/PanelUsersAdmin.svelte';
+	import CategoryPoliciesAdmin from '$lib/CategoryPoliciesAdmin.svelte';
 	import './page.css';
 
 	let auth = $state<{
@@ -228,16 +230,21 @@
 				</button>
 			{:else}
 				<p class="muted">
-					Inicia sesión en <a href="/login">/login</a> con tu contraseña (admin/operator/auditor).
+					Inicia sesión en <a href="/login">/login</a> con usuario y contraseña.
 				</p>
 			{/if}
 		{/if}
 	</section>
 
+	{#if auth?.isAdmin}
+		<PanelUsersAdmin />
+	{/if}
+
 	<section class="panel">
-		<h2 class="panel__h2">2FA (TOTP)</h2>
+		<h2 class="panel__h2">Verificación en dos pasos (2FA)</h2>
 		<p class="muted settingsNote">
-			2FA obligatorio para admins cuando está activado. Guarda los recovery codes en un sitio seguro.
+			Al iniciar sesión como admin sin 2FA, el panel te ofrece activarlo. Si ya lo tienes, en cada login pedirá el código
+			de la app después de la contraseña.
 		</p>
 		{#if !auth?.isAdmin}
 			<p class="muted">Solo el rol admin puede configurar 2FA.</p>
@@ -248,10 +255,21 @@
 				Estado: <strong>Activo</strong>
 				{#if totp.created_at}<span class="muted"> (desde {totp.created_at.slice(0, 10)})</span>{/if}
 			</p>
+			<p class="muted">Para reconfigurar hay que desactivarlo en el servidor (contacta con quien administra el panel).</p>
 		{:else}
-			<p>Estado: <strong>Desactivado</strong></p>
-			<button type="button" class="btn secondary" onclick={start2faSetup} disabled={totpBusy}>
-				{totpBusy ? 'Preparando…' : 'Iniciar configuración 2FA'}
+			<p>Estado: <strong>No configurado</strong></p>
+			<p class="muted">
+				Cierra sesión y vuelve a entrar como admin, o pulsa el botón para repetir el asistente aquí.
+			</p>
+			<button
+				type="button"
+				class="btn secondary"
+				onclick={() => {
+					sessionStorage.removeItem('panel_2fa_decline');
+					window.location.reload();
+				}}
+			>
+				Mostrar asistente de activación
 			</button>
 			{#if totpSetup}
 				<div class="settings2fa">
@@ -266,7 +284,7 @@
 							{/each}
 						</ul>
 						<label class="settings2fa__field">
-							<span>Código TOTP</span>
+							<span>Código de la app</span>
 							<input class="input mono" placeholder="123456" bind:value={totpCode} />
 						</label>
 						<button type="button" class="btn btnAccent" onclick={enable2fa} disabled={totpBusy || !totpCode.trim()}>
@@ -274,6 +292,10 @@
 						</button>
 					</div>
 				</div>
+			{:else}
+				<button type="button" class="btn btnAccent" onclick={start2faSetup} disabled={totpBusy}>
+					{totpBusy ? 'Preparando…' : 'Configurar 2FA manualmente'}
+				</button>
 			{/if}
 			{#if totpError}
 				<p class="settingsErr" role="alert">{totpError}</p>
@@ -318,7 +340,7 @@
 							<span class="muted">({(c.domains?.length ?? 0).toLocaleString('es-ES')} dominios)</span>
 						</summary>
 						<p class="muted" style="margin:6px 0 8px">Un dominio por línea (exacto). Ej: <code class="mono">tiktok.com</code></p>
-						<textarea class="textarea mono" rows="6" value={(c.domains ?? []).join('\n')} />
+						<textarea class="textarea mono" rows="6" value={(c.domains ?? []).join('\n')}></textarea>
 						<div style="margin-top:8px">
 							<button
 								type="button"
@@ -334,6 +356,13 @@
 					</details>
 				{/each}
 			</div>
+			{#if auth?.isAdmin || auth?.role === 'operator'}
+				<CategoryPoliciesAdmin
+					categories={cats.categories}
+					policies={cats.policies}
+					onChange={loadCategories}
+				/>
+			{/if}
 		{/if}
 	</section>
 

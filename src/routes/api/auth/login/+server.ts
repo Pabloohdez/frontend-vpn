@@ -5,7 +5,7 @@ import {
 	isAuthConfigured,
 	MAX_LOGIN_PASSWORD_LENGTH,
 	sessionCookieOptions,
-	verifyPasswordAndGetRole
+	verifyCredentials
 } from '$lib/server/auth';
 import { writeAudit } from '$lib/server/audit';
 import { rateLimitLogin } from '$lib/server/rate-limit';
@@ -41,7 +41,8 @@ export const POST: RequestHandler = async (event) => {
 		return json({ error: 'bad_request' }, { status: 400, headers: { 'cache-control': 'no-store' } });
 	}
 
-	const role = verifyPasswordAndGetRole(password);
+	const username = typeof body?.username === 'string' ? body.username : undefined;
+	const role = verifyCredentials(username, password);
 	const ok = Boolean(role);
 
 	// Lockout por IP (y por rol cuando haya role). Se aplica solo a fallos.
@@ -68,7 +69,10 @@ export const POST: RequestHandler = async (event) => {
 				remote_ip: getClientAddress(),
 				details: { reason: 'totp_required_or_invalid' }
 			});
-			return json({ error: 'totp_required' }, { status: 401, headers: { 'cache-control': 'no-store' } });
+			return json(
+				{ error: 'totp_required', message: 'Introduce el código de tu app de autenticación.' },
+				{ status: 401, headers: { 'cache-control': 'no-store' } }
+			);
 		}
 	}
 	await writeAudit({

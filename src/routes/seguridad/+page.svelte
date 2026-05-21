@@ -181,6 +181,7 @@
 				<h2 class="panel__h2">Alertas ({visibleAlerts.length})</h2>
 				<ul class="secAlerts__list">
 					{#each visibleAlerts as alert (alert.id)}
+						{@const parts = alertDetailParts(alert.detail)}
 						<li class="secAlert secAlert--{alert.severity}">
 							<div class="secAlert__head">
 								<strong class="secAlert__title">{alert.title}</strong>
@@ -188,7 +189,6 @@
 									{alert.severity === 'critical' ? 'Crítico' : 'Aviso'}
 								</span>
 							</div>
-							{@const parts = alertDetailParts(alert.detail)}
 							{#if parts.length > 1 || alert.detail.length > 140}
 								<details class="secAlertExpand">
 									<summary class="secAlertExpand__sum">

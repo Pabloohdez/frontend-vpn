@@ -59,18 +59,34 @@ export function enableTotp() {
 	return true;
 }
 
+/** Verifica código durante el alta de 2FA (secreto guardado pero aún no activado). */
+export function verifyTotpSetup(codeRaw: string): { ok: boolean; used_recovery: boolean } {
+	const state = readTotpState();
+	if (!state?.secret_base32 || state.enabled) return { ok: false, used_recovery: false };
+	return verifyCodeAgainstState(state, codeRaw);
+}
+
 export function verifyTotpOrRecovery(codeRaw: string): { ok: boolean; used_recovery: boolean } {
 	const state = readTotpState();
-	if (!state?.enabled) return { ok: false, used_recovery: false };
-	const code = String(codeRaw ?? '').trim().replaceAll(' ', '');
+	if (!state?.enabled || !state.secret_base32) return { ok: false, used_recovery: false };
+	return verifyCodeAgainstState(state, codeRaw);
+}
+
+function verifyCodeAgainstState(
+	state: { secret_base32: string; recovery_codes: string[] },
+	codeRaw: string
+): { ok: boolean; used_recovery: boolean } {
+	const code = String(codeRaw ?? '').trim().replaceAll(/\s+/g, '');
 	if (!code) return { ok: false, used_recovery: false };
 
-	// Recovery codes: se consumen
 	const hashed = sha256(code);
 	const idx = state.recovery_codes.findIndex((h) => safeEq(h, hashed));
 	if (idx >= 0) {
-		state.recovery_codes.splice(idx, 1);
-		writeTotpState(state);
+		const full = readTotpState();
+		if (full) {
+			full.recovery_codes.splice(idx, 1);
+			writeTotpState(full);
+		}
 		return { ok: true, used_recovery: true };
 	}
 

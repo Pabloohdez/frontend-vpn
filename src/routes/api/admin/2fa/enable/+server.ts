@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { requirePermissionFromRequestCookie } from '$lib/server/auth';
-import { enableTotp, verifyTotpOrRecovery, totpStatus } from '$lib/server/totp';
+import { enableTotp, verifyTotpSetup, totpStatus } from '$lib/server/totp';
 
 export const prerender = false;
 
@@ -16,7 +16,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	if (!code) return json({ error: 'bad_request', message: 'code requerido' }, { status: 400 });
 
 	// Durante setup, el state existe pero enabled=false; verificamos contra secreto guardado.
-	const v = verifyTotpOrRecovery(code);
+	const v = verifyTotpSetup(code);
 	if (!v.ok) return json({ error: 'invalid_code' }, { status: 400 });
 
 	enableTotp();

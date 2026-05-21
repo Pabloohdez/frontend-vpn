@@ -18,7 +18,10 @@ export type AuditAction =
 	| 'dns_report_export'
 	| 'block_schedule_create'
 	| 'block_schedule_update'
-	| 'block_schedule_delete';
+	| 'block_schedule_delete'
+	| 'panel_user_create'
+	| 'panel_user_update'
+	| 'panel_user_delete';
 
 export type AuditEntry = {
 	ts: string;

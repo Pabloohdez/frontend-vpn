@@ -1,4 +1,4 @@
-import { pbkdf2Sync, timingSafeEqual } from 'node:crypto';
+import { pbkdf2Sync, randomBytes, timingSafeEqual } from 'node:crypto';
 
 const PBKDF2_DIGEST = 'sha256';
 const PBKDF2_KEYLEN = 32;
@@ -8,6 +8,15 @@ const MIN_PBKDF2_ITERATIONS = 100_000;
  * Formato: `saltHex:iterations:keyHex` (salt y key en hex, iterations entero).
  * Si el token es inválido devuelve `null` (no configurado / corrupto).
  */
+const DEFAULT_PBKDF2_ITERATIONS = 600_000;
+
+/** Genera `saltHex:iterations:keyHex` para guardar en disco (nunca la contraseña en claro). */
+export function createPbkdf2Token(password: string, iterations = DEFAULT_PBKDF2_ITERATIONS): string {
+	const salt = randomBytes(16);
+	const derived = pbkdf2Sync(password, salt, iterations, PBKDF2_KEYLEN, PBKDF2_DIGEST);
+	return `${salt.toString('hex')}:${iterations}:${derived.toString('hex')}`;
+}
+
 export function verifyPbkdf2Token(password: string, token: string | undefined): boolean | null {
 	const t = token?.trim();
 	if (!t) return null;

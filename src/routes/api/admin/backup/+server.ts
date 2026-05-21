@@ -6,6 +6,7 @@ import { listBlockSchedules } from '$lib/server/block-schedules-store';
 import { readAliases } from '$lib/server/user-aliases';
 import { readHiddenRevoked } from '$lib/server/revoked-hidden';
 import { listAudit } from '$lib/server/audit';
+import { listPanelUsersPublic } from '$lib/server/panel-users-store';
 import { rateLimitKey } from '$lib/server/rate-limit';
 
 export const prerender = false;
@@ -39,7 +40,8 @@ export const GET: RequestHandler = async ({ request, url, getClientAddress }) =>
 		internet_blocks: listInternetBlocks(),
 		block_schedules: listBlockSchedules(),
 		user_aliases: readAliases(),
-		revoked_hidden: readHiddenRevoked()
+		revoked_hidden: readHiddenRevoked(),
+		panel_users: listPanelUsersPublic()
 	};
 
 	return json(payload, {

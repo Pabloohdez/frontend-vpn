@@ -6,6 +6,7 @@
 	import SectionNav from '$lib/SectionNav.svelte';
 	import Toaster from '$lib/Toaster.svelte';
 	import ShortcutsHelp from '$lib/ShortcutsHelp.svelte';
+	import Admin2faOnboarding from '$lib/Admin2faOnboarding.svelte';
 	import {
 		getAppSection,
 		openvpnLinks,
@@ -49,3 +50,4 @@
 
 <Toaster />
 <ShortcutsHelp />
+<Admin2faOnboarding />

@@ -1,39 +1,15 @@
 <script lang="ts">
 	import './launcher.css';
 	import ThemeToggle from '$lib/ThemeToggle.svelte';
-	import { loginErrorMessage } from '$lib/api-errors';
+	import LoginForm from '$lib/LoginForm.svelte';
 	import { onMount } from 'svelte';
 
 	let auth = $state<{ role?: string | null; configured?: boolean } | null>(null);
-	let password = $state('');
-	let totp = $state('');
-	let busy = $state(false);
-	let err = $state<string | null>(null);
 
 	onMount(async () => {
 		const res = await fetch('/api/auth/me', { headers: { 'cache-control': 'no-cache' } }).catch(() => null);
 		auth = res && res.ok ? await res.json() : { role: null, configured: false };
 	});
-
-	async function login() {
-		if (busy) return;
-		busy = true;
-		err = null;
-		const res = await fetch('/api/auth/login', {
-			method: 'POST',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ password, totp: totp || undefined })
-		});
-		const j = await res.json().catch(() => null);
-		if (!res.ok) {
-			err = loginErrorMessage(res.status, j);
-			busy = false;
-			return;
-		}
-		password = '';
-		totp = '';
-		window.location.reload();
-	}
 </script>
 
 <main class="launcher" id="contenido-principal" tabindex="-1">
@@ -60,29 +36,7 @@
 
 		{#if auth?.configured && !auth?.role}
 			<section class="launcherLogin" aria-label="Iniciar sesión">
-				<div class="launcherLogin__row">
-					<input
-						class="input"
-						type="password"
-						autocomplete="current-password"
-						placeholder="Contraseña admin / operator / auditor"
-						bind:value={password}
-						onkeydown={(e) => e.key === 'Enter' && login()}
-					/>
-					<input
-						class="input mono"
-						autocomplete="one-time-code"
-						placeholder="TOTP (solo admin con 2FA)"
-						bind:value={totp}
-						onkeydown={(e) => e.key === 'Enter' && login()}
-					/>
-					<button type="button" class="btn btnAccent" onclick={login} disabled={busy || !password.trim()}>
-						{busy ? 'Entrando…' : 'Entrar'}
-					</button>
-				</div>
-				{#if err}
-					<p class="muted" style="margin-top:8px">{err}</p>
-				{/if}
+				<LoginForm compact />
 			</section>
 		{/if}
 

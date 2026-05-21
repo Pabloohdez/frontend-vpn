@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { parse as parseCookie, serialize as serializeCookie } from 'cookie';
 import { env } from '$env/dynamic/private';
 import { verifyPbkdf2Token } from '$lib/server/password-verify';
+import { hasPanelUsers, verifyPanelUser } from '$lib/server/panel-users-store';
 import { accessCookieName, getRoleFromAccessToken } from '$lib/server/session-store';
 
 export const COOKIE_NAME = 'admin_session';
@@ -51,8 +52,17 @@ function hasAuditorCredential() {
 	);
 }
 
+function hasOperatorCredential() {
+	return Boolean(
+		(env.OPERATOR_PASSWORD_PBKDF2 ?? '').trim() || (env.OPERATOR_PASSWORD ?? '').trim()
+	);
+}
+
 export function isAuthConfigured() {
-	return Boolean(sessionSecretOk() && (hasAdminCredential() || hasAuditorCredential()));
+	return Boolean(
+		sessionSecretOk() &&
+			(hasPanelUsers() || hasAdminCredential() || hasAuditorCredential() || hasOperatorCredential())
+	);
 }
 
 /**
@@ -122,6 +132,60 @@ function timingEq(a: string, b: string) {
 	}
 }
 
+/** Usuarios definidos en `.env` con nombres fijos (compatibilidad). */
+function verifyEnvUsernamePassword(username: string, password: string): AuthRole | null {
+	if (password.length > MAX_LOGIN_PASSWORD_LENGTH) return null;
+	const u = username.trim().toLowerCase();
+
+	if (u === 'admin') {
+		const pbkdfAdmin = (env.ADMIN_PASSWORD_PBKDF2 ?? '').trim();
+		if (pbkdfAdmin) {
+			const r = verifyPbkdf2Token(password, pbkdfAdmin);
+			return r === true ? 'admin' : null;
+		}
+		const admin = envTrim('ADMIN_PASSWORD');
+		if (admin && timingEq(password, admin)) return 'admin';
+		return null;
+	}
+
+	if (u === 'operator') {
+		const pbkdfOp = (env.OPERATOR_PASSWORD_PBKDF2 ?? '').trim();
+		if (pbkdfOp) {
+			const r = verifyPbkdf2Token(password, pbkdfOp);
+			return r === true ? 'operator' : null;
+		}
+		const operator = envTrim('OPERATOR_PASSWORD');
+		if (operator && timingEq(password, operator)) return 'operator';
+		return null;
+	}
+
+	if (u === 'auditor') {
+		const pbkdfAud = (env.AUDITOR_PASSWORD_PBKDF2 ?? '').trim();
+		if (pbkdfAud) {
+			const r = verifyPbkdf2Token(password, pbkdfAud);
+			return r === true ? 'auditor' : null;
+		}
+		const auditor = envTrim('AUDITOR_PASSWORD');
+		if (auditor && timingEq(password, auditor)) return 'auditor';
+		return null;
+	}
+
+	return null;
+}
+
+/** Login con usuario + contraseña (cuentas del panel o `.env` legacy). */
+export function verifyCredentials(username: string | undefined, password: string): AuthRole | null {
+	if (password.length > MAX_LOGIN_PASSWORD_LENGTH) return null;
+	const u = username?.trim();
+	if (u) {
+		const fromPanel = verifyPanelUser(u, password);
+		if (fromPanel) return fromPanel;
+		return verifyEnvUsernamePassword(u, password);
+	}
+	return verifyPasswordAndGetRole(password);
+}
+
+/** Solo contraseña: prueba cada rol en `.env` (sin usuario). */
 export function verifyPasswordAndGetRole(password: string): AuthRole | null {
 	if (password.length > MAX_LOGIN_PASSWORD_LENGTH) return null;
 
