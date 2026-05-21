@@ -69,6 +69,8 @@
 	let data = $state<Payload | null>(null);
 	let windowHours = $state(24);
 	let onlyCritical = $state(false);
+	let showAllAnoms = $state(false);
+	const ANOM_PREVIEW = 8;
 
 	const visibleAlerts = $derived(
 		(data?.alerts ?? []).filter((a) => !onlyCritical || a.severity === 'critical')
@@ -79,6 +81,24 @@
 	const visibleThreats = $derived(
 		(data?.threats ?? []).filter((t) => !onlyCritical || t.score >= 80)
 	);
+
+	const sortedAnomalies = $derived(
+		[...visibleAnomalies].sort((a, b) => b.current - a.current)
+	);
+	const shownAnomalies = $derived(
+		showAllAnoms ? sortedAnomalies : sortedAnomalies.slice(0, ANOM_PREVIEW)
+	);
+	const hiddenAnomCount = $derived(Math.max(0, sortedAnomalies.length - ANOM_PREVIEW));
+
+	function alertDetailParts(detail: string): string[] {
+		const chunks = detail.split(/\s*·\s*|\n+/).map((s) => s.trim()).filter(Boolean);
+		return chunks.length > 1 ? chunks : [detail];
+	}
+
+	function anomalyBadge(a: DnsAnomaly): string {
+		if (Number.isFinite(a.multiplier) && a.multiplier > 0) return `×${a.multiplier}`;
+		return 'Sin histórico';
+	}
 
 	const criticalCount = $derived.by(() => {
 		if (!data) return 0;
@@ -168,13 +188,24 @@
 									{alert.severity === 'critical' ? 'Crítico' : 'Aviso'}
 								</span>
 							</div>
-							{#if alert.detail.length > 120}
+							{@const parts = alertDetailParts(alert.detail)}
+							{#if parts.length > 1 || alert.detail.length > 140}
 								<details class="secAlertExpand">
-									<summary class="muted">Ver detalle</summary>
-									<p class="secAlert__detail muted">{alert.detail}</p>
+									<summary class="secAlertExpand__sum">
+										Ver detalle ({parts.length > 1 ? `${parts.length} entradas` : 'texto largo'})
+									</summary>
+									{#if parts.length > 1}
+										<ul class="secAlert__items">
+											{#each parts as line, i (i)}
+												<li class="secAlert__item mono">{line}</li>
+											{/each}
+										</ul>
+									{:else}
+										<p class="secAlert__detail">{alert.detail}</p>
+									{/if}
 								</details>
 							{:else}
-								<p class="secAlert__detail muted">{alert.detail}</p>
+								<p class="secAlert__detail">{alert.detail}</p>
 							{/if}
 						</li>
 					{/each}
@@ -189,32 +220,42 @@
 					Dispositivos con actividad muy superior a su media de los últimos 7 días.
 				</p>
 				<ul class="secAnoms__list">
-					{#each visibleAnomalies as a (a.client)}
+					{#each shownAnomalies as a (a.client)}
 						<li class="secAnom secAnom--{a.severity}">
-							<div class="secAnom__head">
-								<strong class="secAnom__name">{a.label ?? a.client}</strong>
-								<span class="secBadge secBadge--{a.severity}">
-									{Number.isFinite(a.multiplier) ? `×${a.multiplier}` : 'Nuevo'}
-								</span>
+							<div class="secAnom__top">
+								<div class="secAnom__identity">
+									<strong class="secAnom__name">{a.label ?? a.client}</strong>
+									<span class="secAnom__client mono">{a.client}</span>
+								</div>
+								<span class="secBadge secBadge--{a.severity}">{anomalyBadge(a)}</span>
 							</div>
-							<div class="secAnom__meta muted">
-								<span class="mono">{a.client}</span>
-								·
-								<span>
-									{a.current.toLocaleString('es-ES')} consultas
-									{#if a.baseline_avg > 0}
-										vs ≈ {a.baseline_avg.toLocaleString('es-ES')} habituales
-									{:else}
-										(sin historial reciente)
-									{/if}
-								</span>
+							<div class="secAnom__stats">
+								<div class="secAnom__stat">
+									<span class="secAnom__statN">{a.current.toLocaleString('es-ES')}</span>
+									<span class="secAnom__statL">consultas</span>
+								</div>
+								{#if a.baseline_avg > 0}
+									<div class="secAnom__stat secAnom__stat--muted">
+										<span class="secAnom__statN">≈ {a.baseline_avg.toLocaleString('es-ES')}</span>
+										<span class="secAnom__statL">habituales</span>
+									</div>
+								{/if}
 							</div>
-							<div class="secAnom__actions">
-								<a class="secLink" href={`/dns?device_ip=${encodeURIComponent(a.client)}`}>Ver consultas</a>
-							</div>
+							<a class="secAnom__link" href={`/dns?device_ip=${encodeURIComponent(a.client)}`}>
+								Ver consultas →
+							</a>
 						</li>
 					{/each}
 				</ul>
+				{#if hiddenAnomCount > 0 && !showAllAnoms}
+					<button type="button" class="btn btnSecondary secAnoms__more" onclick={() => (showAllAnoms = true)}>
+						Mostrar {hiddenAnomCount} más
+					</button>
+				{:else if showAllAnoms && sortedAnomalies.length > ANOM_PREVIEW}
+					<button type="button" class="btn btnSecondary secAnoms__more" onclick={() => (showAllAnoms = false)}>
+						Mostrar menos
+					</button>
+				{/if}
 			</section>
 		{/if}
 
@@ -227,21 +268,20 @@
 				<ul class="secAnoms__list">
 					{#each visibleThreats as t (`${t.kind}-${t.client}-${t.domain}`)}
 						<li class="secAnom secAnom--{t.score >= 80 ? 'critical' : 'warn'}">
-							<div class="secAnom__head">
-								<strong class="secAnom__name">{t.label ?? t.client}</strong>
+							<div class="secAnom__top">
+								<div class="secAnom__identity">
+									<strong class="secAnom__name">{t.label ?? t.client}</strong>
+									<span class="secAnom__client mono">{t.client}</span>
+								</div>
 								<span class="secBadge secBadge--{t.score >= 80 ? 'critical' : 'warn'}">
 									{t.kind === 'txt_suspect' ? 'TXT' : `Score ${t.score}`}
 								</span>
 							</div>
 							<div class="secThreat__domain mono" title={t.domain}>{t.domain}</div>
-							<div class="secAnom__meta muted">
-								<span class="mono">{t.client}</span>
-								·
-								<span>{t.detail}</span>
-							</div>
-							<div class="secAnom__actions">
-								<a class="secLink" href={`/dns?device_ip=${encodeURIComponent(t.client)}`}>Ver consultas</a>
-							</div>
+							<p class="secAnom__meta">{t.detail}</p>
+							<a class="secAnom__link" href={`/dns?device_ip=${encodeURIComponent(t.client)}`}>
+								Ver consultas →
+							</a>
 						</li>
 					{/each}
 				</ul>
