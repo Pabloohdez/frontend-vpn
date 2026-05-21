@@ -6,6 +6,7 @@
 	import PanelUsersAdmin from '$lib/PanelUsersAdmin.svelte';
 	import CategoryPoliciesAdmin from '$lib/CategoryPoliciesAdmin.svelte';
 	import ThreatIntelAdmin from '$lib/ThreatIntelAdmin.svelte';
+	import PiholeGroupsAdmin from '$lib/PiholeGroupsAdmin.svelte';
 	import './page.css';
 
 	let auth = $state<{
@@ -218,8 +219,16 @@
 				<span class="settingsQuick__hint muted">Documentación interna</span>
 			</a>
 			<a href="/api/admin/roles-guide" class="settingsQuick__card" download="roles-panel-vpn.md">
-				<span class="settingsQuick__label">Guía de roles</span>
+				<span class="settingsQuick__label">Guía de roles (.md)</span>
 				<span class="settingsQuick__hint muted">Markdown para tutor / memoria</span>
+			</a>
+			<a
+				href="/api/admin/roles-guide?format=pdf"
+				class="settingsQuick__card"
+				download="roles-panel-vpn.pdf"
+			>
+				<span class="settingsQuick__label">Guía de roles (.pdf)</span>
+				<span class="settingsQuick__hint muted">Imprimible para entregar al tutor</span>
 			</a>
 		</div>
 	</section>
@@ -389,6 +398,9 @@
 					vpnCns={cats.vpn_cns ?? []}
 					onChange={loadCategories}
 				/>
+			{/if}
+			{#if auth?.isAdmin || auth?.role === 'operator'}
+				<PiholeGroupsAdmin />
 			{/if}
 			{#if auth?.isAdmin}
 				<h3 class="panel__h3" style="margin-top:1.25rem">Threat intel (URLhaus)</h3>

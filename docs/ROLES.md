@@ -1,6 +1,8 @@
 # Guía de roles — Panel VPN
 
-> Copia orientativa. La versión al día se genera desde el código con **Ajustes → Descargar guía de roles** o `GET /api/admin/roles-guide`.
+> Copia orientativa. La versión al día se genera desde el código:
+> - **Ajustes → Guía de roles (.md)** o `GET /api/admin/roles-guide`
+> - **Ajustes → Guía de roles (.pdf)** o `GET /api/admin/roles-guide?format=pdf`
 
 ## Resumen
 

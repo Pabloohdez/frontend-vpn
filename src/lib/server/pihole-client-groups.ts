@@ -25,7 +25,7 @@ function extractClients(data: unknown): PiholeClient[] {
 	return [];
 }
 
-function extractGroups(data: unknown): { id: number; name: string }[] {
+export function extractGroups(data: unknown): { id: number; name: string }[] {
 	if (!data || typeof data !== 'object') return [];
 	const o = data as Record<string, unknown>;
 	const arr = Array.isArray(o.groups) ? o.groups : Array.isArray(o.data) ? o.data : Array.isArray(data) ? data : [];
@@ -42,6 +42,32 @@ function extractGroups(data: unknown): { id: number; name: string }[] {
 
 function keyForIp(ip: string) {
 	return encodeURIComponent(ip);
+}
+
+export async function listPiholeGroups(
+	fetchFn: typeof fetch
+): Promise<{ ok: boolean; groups: { id: number; name: string }[]; session: PiholeV6Session | null }> {
+	const session = await piholeV6Login(fetchFn);
+	if (!session) return { ok: false, groups: [], session: null };
+	const res = await piholeV6Request(fetchFn, 'GET', '/api/groups', { session });
+	if (!res.ok) return { ok: false, groups: [], session };
+	return { ok: true, groups: extractGroups(res.data), session };
+}
+
+export async function createPiholeGroup(
+	fetchFn: typeof fetch,
+	name: string,
+	description: string
+): Promise<{ ok: boolean; group: { id: number; name: string } | null; message?: string }> {
+	const trimmed = name.trim();
+	if (!trimmed || trimmed.length > 64) {
+		return { ok: false, group: null, message: 'Nombre de grupo inválido' };
+	}
+	const eg = await ensureGroup(fetchFn, trimmed, description);
+	if (!eg.ok || eg.groupId == null) {
+		return { ok: false, group: null, message: 'No se pudo crear el grupo en Pi-hole' };
+	}
+	return { ok: true, group: { id: eg.groupId, name: trimmed } };
 }
 
 export async function ensureGroup(

@@ -84,7 +84,7 @@ Leyenda: ✅ Hecho · ⚠️ Parcial · ❌ No / no aplica
 | Categorías predefinidas (social, streaming, …) | ⚠️ | `category-store.ts` — dominios editables en Ajustes. |
 | Políticas categoría + IP + horario | ⚠️ | Backend `category-runner.ts` + UI `src/lib/CategoryPoliciesAdmin.svelte` en Ajustes. |
 | Políticas por usuario VPN (CN) | ⚠️ | `target_type: vpn_cn` en políticas; resuelve IPs vía `vpn-ipcn-history.json`. |
-| Toggle por grupo Pi-hole genérico | ❌ | Grupos `panel-cat-*` por categoría, no grupos VPN arbitrarios. |
+| Grupos Pi-hole personalizados | ⚠️ | `PiholeGroupsAdmin.svelte`, `/api/admin/pihole-groups`, `group-policy-runner.ts`. |
 
 ---
 
@@ -112,6 +112,8 @@ sudo docker compose -f docker-compose.prod.yml up -d --build
 7. HTTPS + HSTS → guía en [`docs/HTTPS.md`](HTTPS.md) (`COOKIE_SECURE`, `TRUST_PROXY`, Caddy/nginx).
 8. ~~Tests e2e CSRF y roles~~ → `tests/e2e/csrf-and-roles.spec.ts`.
 9. ~~Políticas categoría por CN VPN~~ → `target_type: vpn_cn` + UI en Ajustes.
+10. ~~Guía de roles PDF~~ → `GET /api/admin/roles-guide?format=pdf` (`roles-guide-pdf.ts`).
+11. ~~Grupos Pi-hole custom~~ → crear grupos + políticas por IP/CN en Ajustes.
 
 ---
 

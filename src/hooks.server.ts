@@ -5,6 +5,7 @@ import { getRoleFromEventCookiesAsync } from '$lib/server/auth';
 import { getOrCreateCsrfCookie, verifyCsrf } from '$lib/server/csrf';
 import { tickCategoryPolicies } from '$lib/server/category-runner';
 import { tickThreatIntelSync } from '$lib/server/urlhaus-sync';
+import { tickClientGroupPolicies } from '$lib/server/group-policy-runner';
 
 /**
  * Cabeceras de seguridad globales. La Content-Security-Policy se gestiona en
@@ -41,6 +42,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// Aplica categorías por horario (throttle interno ~60s).
 	void tickCategoryPolicies(event.fetch);
 	void tickThreatIntelSync(event.fetch);
+	void tickClientGroupPolicies(event.fetch);
 
 	const response = await resolve(event);
 	if (csrf.setCookie) response.headers.append('set-cookie', csrf.setCookie);
