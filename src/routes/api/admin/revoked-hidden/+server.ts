@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { isAdminFromRequestCookie } from '$lib/server/auth';
+import { requirePermissionFromRequestCookie } from '$lib/server/auth';
 import { addHiddenRevoked, readHiddenRevoked, removeHiddenRevoked } from '$lib/server/revoked-hidden';
 import { writeAudit } from '$lib/server/audit';
 
@@ -11,14 +11,14 @@ function isValidCn(cn: string) {
 }
 
 export const GET: RequestHandler = async ({ request }) => {
-	if (!isAdminFromRequestCookie(request.headers.get('cookie'))) {
+	if (!requirePermissionFromRequestCookie(request.headers.get('cookie'), 'vpn_read').ok) {
 		return json({ error: 'unauthorized' }, { status: 401 });
 	}
 	return json({ hidden: readHiddenRevoked() }, { headers: { 'cache-control': 'no-store' } });
 };
 
 export const PUT: RequestHandler = async ({ request, getClientAddress }) => {
-	if (!isAdminFromRequestCookie(request.headers.get('cookie'))) {
+	if (!requirePermissionFromRequestCookie(request.headers.get('cookie'), 'vpn_write').ok) {
 		return json({ error: 'unauthorized' }, { status: 401 });
 	}
 
@@ -43,7 +43,7 @@ export const PUT: RequestHandler = async ({ request, getClientAddress }) => {
 };
 
 export const DELETE: RequestHandler = async ({ request, getClientAddress }) => {
-	if (!isAdminFromRequestCookie(request.headers.get('cookie'))) {
+	if (!requirePermissionFromRequestCookie(request.headers.get('cookie'), 'vpn_write').ok) {
 		return json({ error: 'unauthorized' }, { status: 401 });
 	}
 

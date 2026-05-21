@@ -1,6 +1,8 @@
+import { resolvePolicyTargetIps } from '$lib/server/category-policy-resolve';
 import { listCategories, listCategoryPolicies, type CategoryId } from '$lib/server/category-store';
 import { ensureGroup, getClientCurrentGroups, setClientGroups } from '$lib/server/pihole-client-groups';
 import { piholeV6Request } from '$lib/server/pihole-v6-session';
+import { readPrunedIpCnHistory, refreshIpCnHistoryBestEffort } from '$lib/server/vpn-ipcn-history';
 
 const GROUP_PREFIX = 'panel-cat-';
 
@@ -61,14 +63,18 @@ export async function tickCategoryPolicies(fetchFn: typeof fetch, force = false)
 
 	if (!session || groupIds.size === 0) return;
 
-	// desired groups per ip
+	await refreshIpCnHistoryBestEffort(fetchFn);
+	const history = readPrunedIpCnHistory();
+
 	const now = new Date();
 	const desiredByIp = new Map<string, number[]>();
 	for (const p of policies) {
 		if (!inWindow(now, p.start, p.end, p.days)) continue;
 		const gid = groupIds.get(p.category_id);
 		if (!gid) continue;
-		desiredByIp.set(p.ip, [...new Set([...(desiredByIp.get(p.ip) ?? []), gid])]);
+		for (const ip of resolvePolicyTargetIps(p, history)) {
+			desiredByIp.set(ip, [...new Set([...(desiredByIp.get(ip) ?? []), gid])]);
+		}
 	}
 
 	// apply per ip: keep non-category groups, swap category groups to desired

@@ -12,6 +12,7 @@
 		configured: boolean;
 		isAdmin: boolean;
 		role?: string | null;
+		permissions?: string[];
 	} | null>(null);
 	let loggingOut = $state(false);
 	let downloadingBackup = $state(false);
@@ -21,12 +22,14 @@
 	let totpCode = $state('');
 	let totpBusy = $state(false);
 	let totpError = $state<string | null>(null);
-	let cats = $state<{ categories: any[]; policies: any[] } | null>(null);
+	let cats = $state<{ categories: any[]; policies: any[]; vpn_cns?: string[] } | null>(null);
 	let catsError = $state<string | null>(null);
 
 	onMount(async () => {
 		const res = await fetch('/api/auth/me', { headers: { 'cache-control': 'no-cache' } });
-		auth = res.ok ? await res.json() : { configured: false, isAdmin: false };
+		auth = res.ok
+			? await res.json()
+			: { configured: false, isAdmin: false, permissions: [] };
 		if (auth?.isAdmin) {
 			const s = await fetch('/api/admin/2fa/status', { headers: { 'cache-control': 'no-cache' } }).catch(() => null);
 			totp = s && s.ok ? await s.json() : null;
@@ -234,6 +237,16 @@
 				{/if}
 			</p>
 			{#if auth.role}
+				{#if auth.permissions?.length}
+					<details class="settingsPerms muted" style="margin:12px 0">
+						<summary>Permisos de tu rol ({auth.permissions.length})</summary>
+						<ul style="margin:8px 0 0;padding-left:1.2rem;font-size:0.9rem">
+							{#each auth.permissions as p (p)}
+								<li class="mono">{p}</li>
+							{/each}
+						</ul>
+					</details>
+				{/if}
 				<button type="button" class="btn secondary" onclick={logout} disabled={loggingOut}>
 					{loggingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
 				</button>
@@ -369,6 +382,7 @@
 				<CategoryPoliciesAdmin
 					categories={cats.categories}
 					policies={cats.policies}
+					vpnCns={cats.vpn_cns ?? []}
 					onChange={loadCategories}
 				/>
 			{/if}

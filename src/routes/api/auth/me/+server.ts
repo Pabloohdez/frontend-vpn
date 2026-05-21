@@ -6,6 +6,7 @@ import {
 	getRoleFromRequestCookie,
 	getSessionExpiresAtMs,
 	isAuthConfigured,
+	listPermissionsForRole,
 	shouldUseSecureCookies
 } from '$lib/server/auth';
 import { isAdmin2faRequired } from '$lib/server/admin-2fa-policy';
@@ -34,6 +35,7 @@ export const GET: RequestHandler = async ({ request, cookies }) => {
 					}
 				: null,
 			admin2faRequired: isAdmin && isAdmin2faRequired(),
+			permissions: role ? listPermissionsForRole(role) : [],
 			/** Si login falla en HTTP: debe ser false al acceder por http://IP:puerto */
 			secureCookies: shouldUseSecureCookies(request)
 		},

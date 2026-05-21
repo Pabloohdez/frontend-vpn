@@ -13,7 +13,7 @@ Leyenda: ✅ Hecho · ⚠️ Parcial · ❌ No / no aplica
 | 2FA TOTP para administradores | ✅ | `src/lib/server/totp.ts`, `src/lib/Admin2faOnboarding.svelte`, login en `src/lib/LoginForm.svelte`. Librería: **otplib**. |
 | 2FA obligatorio siempre | ⚠️ | `ADMIN_2FA_REQUIRED=true` en `.env` (`src/lib/server/admin-2fa-policy.ts`). Sin «Ahora no»; alternativa: cerrar sesión. Pon `false` solo en dev. |
 | Roles admin / operador / auditor | ✅ | `src/lib/server/auth.ts` — permisos `hasPermission()`. |
-| Permisos muy granulares (p. ej. solo logs vs solo banear) | ❌ | Tres roles fijos; no hay permisos por acción individual. |
+| Permisos granulares por acción | ⚠️ | Matriz en `src/lib/server/permissions.ts` (`vpn_read` / `vpn_write`, Pi-hole, backup…). Expuesto en `/api/auth/me` → `permissions[]`. |
 | Usuarios del panel (usuario + contraseña + rol) | ✅ | `src/lib/server/panel-users-store.ts`, UI `src/lib/PanelUsersAdmin.svelte`, API `/api/admin/panel-users`. |
 | Login legacy `.env` | ✅ | Usuarios `admin`, `auditor`, `operator` + variables `*_PASSWORD` / `*_PASSWORD_PBKDF2`. |
 | Sesión corta + refresh | ⚠️ | Con **Redis**: `src/lib/server/session-store.ts` (access ~15 min, refresh ~30 días), `/api/auth/refresh`. Sin Redis: cookie `admin_session` 12 h. **No es JWT**. |
@@ -83,7 +83,8 @@ Leyenda: ✅ Hecho · ⚠️ Parcial · ❌ No / no aplica
 | Horarios por dispositivo (cortar internet) | ✅ | `src/lib/server/block-schedules-store.ts`, `src/lib/BlockSchedulePanel.svelte` |
 | Categorías predefinidas (social, streaming, …) | ⚠️ | `category-store.ts` — dominios editables en Ajustes. |
 | Políticas categoría + IP + horario | ⚠️ | Backend `category-runner.ts` + UI `src/lib/CategoryPoliciesAdmin.svelte` en Ajustes. |
-| Toggle por grupo de usuarios | ❌ | Políticas van por **IP**, no por grupo/CN VPN en categorías. |
+| Políticas por usuario VPN (CN) | ⚠️ | `target_type: vpn_cn` en políticas; resuelve IPs vía `vpn-ipcn-history.json`. |
+| Toggle por grupo Pi-hole genérico | ❌ | Grupos `panel-cat-*` por categoría, no grupos VPN arbitrarios. |
 
 ---
 
@@ -109,6 +110,8 @@ sudo docker compose -f docker-compose.prod.yml up -d --build
 5. ~~Threat intel URLhaus~~ → activar en `.env` y sincronizar desde Ajustes.
 6. ~~Renovar sesión automáticamente~~ → `SessionExpiryBanner` renueva con `/api/auth/refresh` si quedan menos de 5 min.
 7. HTTPS + HSTS → guía en [`docs/HTTPS.md`](HTTPS.md) (`COOKIE_SECURE`, `TRUST_PROXY`, Caddy/nginx).
+8. ~~Tests e2e CSRF y roles~~ → `tests/e2e/csrf-and-roles.spec.ts`.
+9. ~~Políticas categoría por CN VPN~~ → `target_type: vpn_cn` + UI en Ajustes.
 
 ---
 

@@ -101,7 +101,21 @@ servidor de SvelteKit con cookies de sesión firmadas y control de roles.
 /users   → Usuarios VPN     /dns                → Consultas DNS en vivo
 /status  → Estado servicios /seguridad          → Métricas / tops
 /pihole  → Resumen Pi-hole  /audit              → Auditoría
+/ajustes → Categorías, 2FA, usuarios del panel
 ```
+
+## Roles del panel
+
+| Rol | Uso típico | Puede | No puede |
+|-----|------------|-------|----------|
+| **admin** | Responsable IT | Todo: usuarios VPN, Pi-hole, backup, 2FA, usuarios del panel | — |
+| **operator** | Soporte / aulas | Pi-hole, bloqueos, horarios, **ver** clientes VPN y DNS | Crear/revocar VPN, backup, gestionar cuentas del panel |
+| **auditor** | Dirección / tutor | Leer dashboard, DNS, auditoría, seguridad | Cambiar listas ni bloquear |
+
+Matriz detallada y checklist de seguridad: [`docs/SECURITY.md`](./docs/SECURITY.md).  
+Permisos en código: `src/lib/server/permissions.ts` (también en `/api/auth/me` → `permissions[]`).
+
+**Políticas de categoría:** por **IP** o por **CN OpenVPN** (usuario VPN); el motor resuelve las IPs desde el histórico `vpn-ipcn-history.json`.
 
 ## Inicio rápido
 

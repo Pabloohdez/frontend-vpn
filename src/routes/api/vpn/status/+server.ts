@@ -1,7 +1,11 @@
 import { json } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import type { RequestHandler } from './$types';
-import { isAdminFromRequestCookie, isAuditorOrAdminFromRequestCookie } from '$lib/server/auth';
+import {
+	getRoleFromRequestCookie,
+	hasPermission,
+	isStaffFromRequestCookie
+} from '$lib/server/auth';
 import { writeAudit } from '$lib/server/audit';
 import { fetchVm1 } from '$lib/server/vm1';
 import { log } from '$lib/server/log';
@@ -16,7 +20,7 @@ function maskIp(ip: string) {
 }
 
 export const GET: RequestHandler = async ({ fetch, request, url, getClientAddress }) => {
-	if (!isAuditorOrAdminFromRequestCookie(request.headers.get('cookie'))) {
+	if (!isStaffFromRequestCookie(request.headers.get('cookie'))) {
 		return json({ error: 'unauthorized' }, { status: 401, headers: { 'Cache-Control': 'no-store' } });
 	}
 
@@ -33,9 +37,9 @@ export const GET: RequestHandler = async ({ fetch, request, url, getClientAddres
 		);
 	}
 
-	const isAdmin = isAdminFromRequestCookie(request.headers.get('cookie'));
+	const role = getRoleFromRequestCookie(request.headers.get('cookie'));
 	const revealCn = url.searchParams.get('reveal_cn');
-	const canRevealOne = Boolean(isAdmin && revealCn);
+	const canRevealOne = Boolean(role && hasPermission(role, 'vpn_write') && revealCn);
 
 	const upstream = await fetchVm1(`${baseUrl}/api/v1/status`, {
 		headers: { 'X-API-Key': apiKey }
@@ -95,14 +99,14 @@ export const GET: RequestHandler = async ({ fetch, request, url, getClientAddres
 		});
 	}
 
-	if (revealCn && !isAdmin) {
+	if (revealCn && !canRevealOne) {
 		await writeAudit({
 			ts: new Date().toISOString(),
-			actor: 'admin',
+			actor: role ?? 'unknown',
 			action: 'view_ip',
 			success: false,
 			remote_ip: getClientAddress(),
-			details: { reason: 'not_admin', cn: revealCn }
+			details: { reason: 'forbidden', cn: revealCn }
 		});
 	}
 

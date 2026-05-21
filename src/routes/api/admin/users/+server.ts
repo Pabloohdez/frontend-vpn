@@ -1,12 +1,12 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { isAdminFromRequestCookie } from '$lib/server/auth';
+import { requirePermissionFromRequestCookie } from '$lib/server/auth';
 import { writeAudit } from '$lib/server/audit';
 import { writeCriticalAudit } from '$lib/server/audit-signed';
 import { assertVm1Configured, fetchVm1, vm1ApiKey, vm1BaseUrl } from '$lib/server/vm1';
 
 export const GET: RequestHandler = async ({ request, fetch }) => {
-	if (!isAdminFromRequestCookie(request.headers.get('cookie'))) {
+	if (!requirePermissionFromRequestCookie(request.headers.get('cookie'), 'vpn_read').ok) {
 		return json({ error: 'unauthorized' }, { status: 401 });
 	}
 
@@ -22,7 +22,7 @@ export const GET: RequestHandler = async ({ request, fetch }) => {
 };
 
 export const POST: RequestHandler = async ({ request, fetch, getClientAddress }) => {
-	if (!isAdminFromRequestCookie(request.headers.get('cookie'))) {
+	if (!requirePermissionFromRequestCookie(request.headers.get('cookie'), 'vpn_write').ok) {
 		return json({ error: 'unauthorized' }, { status: 401 });
 	}
 
@@ -86,7 +86,7 @@ export const POST: RequestHandler = async ({ request, fetch, getClientAddress })
 };
 
 export const DELETE: RequestHandler = async ({ request, fetch, url, getClientAddress }) => {
-	if (!isAdminFromRequestCookie(request.headers.get('cookie'))) {
+	if (!requirePermissionFromRequestCookie(request.headers.get('cookie'), 'vpn_write').ok) {
 		return json({ error: 'unauthorized' }, { status: 401 });
 	}
 

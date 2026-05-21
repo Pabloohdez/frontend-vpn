@@ -29,11 +29,15 @@ jobs:
       - name: Unit tests
         run: npm run test
 
+      - name: CSRF fetch check
+        run: npm run check:csrf
+
       - name: Production build
         run: npm run build
         env:
           SESSION_SECRET: ci_dummy_secret_minimum_32_chars_long
           ADMIN_PASSWORD: ci_admin
+          OPERATOR_PASSWORD: ci_operator
 
   e2e:
     runs-on: ubuntu-latest
@@ -53,6 +57,8 @@ jobs:
         env:
           SESSION_SECRET: ci_dummy_secret_minimum_32_chars_long
           ADMIN_PASSWORD: ci_admin
+          OPERATOR_PASSWORD: ci_operator
+          E2E_OPERATOR_PASSWORD: ci_operator
       - name: Upload Playwright report on failure
         if: failure()
         uses: actions/upload-artifact@v4

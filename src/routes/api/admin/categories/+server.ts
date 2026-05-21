@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { requirePermissionFromRequestCookie } from '$lib/server/auth';
+import { listKnownVpnCns } from '$lib/server/category-policy-resolve';
 import {
 	deleteCategoryPolicy,
 	listCategories,
@@ -20,7 +21,11 @@ export const GET: RequestHandler = async ({ request }) => {
 		return json({ error: 'unauthorized' }, { status: 401, headers: { 'cache-control': 'no-store' } });
 	}
 	return json(
-		{ categories: listCategories(), policies: listCategoryPolicies() },
+		{
+			categories: listCategories(),
+			policies: listCategoryPolicies(),
+			vpn_cns: listKnownVpnCns()
+		},
 		{ headers: { 'cache-control': 'no-store' } }
 	);
 };
@@ -62,14 +67,31 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	if (body?.type === 'policy') {
 		const p = body?.policy;
 		if (!p || typeof p !== 'object') return json({ error: 'bad_request' }, { status: 400 });
-		const saved = upsertCategoryPolicy(p);
+		let saved;
+		try {
+			saved = upsertCategoryPolicy(p);
+		} catch {
+			return json(
+				{
+					error: 'bad_request',
+					message: 'Política inválida: IP o CN VPN incorrectos'
+				},
+				{ status: 400 }
+			);
+		}
 		const entry = {
 			ts: new Date().toISOString(),
 			actor: authz.role,
 			action: 'category_policy_upsert' as const,
 			success: true,
 			remote_ip: getClientAddress(),
-			details: { policy_id: saved.id, ip: saved.ip, category_id: saved.category_id }
+			details: {
+				policy_id: saved.id,
+				target_type: saved.target_type,
+				ip: saved.ip || null,
+				vpn_cn: saved.vpn_cn,
+				category_id: saved.category_id
+			}
 		};
 		await writeAudit(entry);
 		try {

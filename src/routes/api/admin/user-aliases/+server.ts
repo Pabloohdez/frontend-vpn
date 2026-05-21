@@ -1,19 +1,19 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { isAdminFromRequestCookie } from '$lib/server/auth';
+import { requirePermissionFromRequestCookie } from '$lib/server/auth';
 import { readAliases, writeAliases } from '$lib/server/user-aliases';
 
 export const prerender = false;
 
 export const GET: RequestHandler = async ({ request }) => {
-	if (!isAdminFromRequestCookie(request.headers.get('cookie'))) {
+	if (!requirePermissionFromRequestCookie(request.headers.get('cookie'), 'vpn_read').ok) {
 		return json({ error: 'unauthorized' }, { status: 401 });
 	}
 	return json(readAliases(), { headers: { 'cache-control': 'no-store' } });
 };
 
 export const PUT: RequestHandler = async ({ request }) => {
-	if (!isAdminFromRequestCookie(request.headers.get('cookie'))) {
+	if (!requirePermissionFromRequestCookie(request.headers.get('cookie'), 'vpn_write').ok) {
 		return json({ error: 'unauthorized' }, { status: 401 });
 	}
 	const body = await request.json().catch(() => null);

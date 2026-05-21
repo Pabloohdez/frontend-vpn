@@ -4,6 +4,8 @@ import { env } from '$env/dynamic/private';
 import { verifyPbkdf2Token } from '$lib/server/password-verify';
 import { hasPanelUsers, verifyPanelUser } from '$lib/server/panel-users-store';
 import { accessCookieName, getRoleFromAccessToken } from '$lib/server/session-store';
+import type { Permission } from '$lib/server/permissions';
+import { hasPermission as checkPermission, hasStaffReadAccess } from '$lib/server/permissions';
 
 export const COOKIE_NAME = 'admin_session';
 
@@ -16,15 +18,9 @@ export const SESSION_SECRET_MIN_LENGTH = 32;
 /** Longitud máxima aceptada en login (mitiga cuerpos enormes). */
 export const MAX_LOGIN_PASSWORD_LENGTH = 512;
 
-export type AuthRole = 'admin' | 'operator' | 'auditor';
-
-export type Permission =
-	| 'read'
-	| 'pihole_write'
-	| 'internet_block_write'
-	| 'block_schedules_write'
-	| 'openvpn_admin'
-	| 'backup_export';
+export type { AuthRole, Permission } from '$lib/server/permissions';
+export { hasPermission, hasStaffReadAccess, listPermissionsForRole } from '$lib/server/permissions';
+import type { AuthRole } from '$lib/server/permissions';
 
 function envTrim(name: keyof typeof env): string {
 	const v = env[name];
@@ -238,26 +234,12 @@ function roleFromSessionValue(raw: string | undefined | null): AuthRole | null {
 	}
 }
 
-export function hasPermission(role: AuthRole | null | undefined, perm: Permission): boolean {
-	if (!role) return false;
-	if (role === 'admin') return true;
-	if (role === 'auditor') return perm === 'read';
-	// operator
-	if (perm === 'read') return true;
-	if (perm === 'pihole_write') return true;
-	if (perm === 'internet_block_write') return true;
-	if (perm === 'block_schedules_write') return true;
-	if (perm === 'backup_export') return false; // solo admin
-	if (perm === 'openvpn_admin') return false;
-	return false;
-}
-
 export function requirePermissionFromRequestCookie(
 	cookieHeader: string | null | undefined,
 	perm: Permission
 ): { ok: true; role: AuthRole } | { ok: false } {
 	const role = getRoleFromRequestCookie(cookieHeader);
-	return hasPermission(role, perm) && role ? { ok: true, role } : { ok: false };
+	return checkPermission(role, perm) && role ? { ok: true, role } : { ok: false };
 }
 
 export function getRoleFromRequestCookie(cookieHeader: string | null | undefined): AuthRole | null {
@@ -286,9 +268,14 @@ export async function getRoleFromEventCookiesAsync(event: {
 	return await getRoleFromAccessToken(access);
 }
 
+/** @deprecated Usa `isStaffFromRequestCookie` (incluye operador). */
 export function isAuditorOrAdminFromRequestCookie(cookieHeader: string | null | undefined) {
-	const role = getRoleFromRequestCookie(cookieHeader);
-	return role === 'admin' || role === 'auditor';
+	return isStaffFromRequestCookie(cookieHeader);
+}
+
+/** Admin, operador o auditor: lectura de monitorización (DNS, dashboard, auditoría). */
+export function isStaffFromRequestCookie(cookieHeader: string | null | undefined) {
+	return hasStaffReadAccess(getRoleFromRequestCookie(cookieHeader));
 }
 
 /** Epoch ms en que caduca la sesión (solo si la cookie es válida). */

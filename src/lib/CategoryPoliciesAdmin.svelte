@@ -3,12 +3,15 @@
 	import { apiErrorMessage } from '$lib/api-errors';
 
 	type CategoryId = 'social' | 'streaming' | 'gaming' | 'gambling' | 'malware';
+	type TargetType = 'ip' | 'vpn_cn';
 
 	type CategoryDef = { id: CategoryId; label: string; domains?: string[] };
 
 	type Policy = {
 		id: string;
+		target_type: TargetType;
 		ip: string;
+		vpn_cn: string | null;
 		category_id: CategoryId;
 		label: string | null;
 		enabled: boolean;
@@ -20,17 +23,21 @@
 	let {
 		categories = [],
 		policies = [],
+		vpnCns = [],
 		onChange
 	}: {
 		categories?: CategoryDef[];
 		policies?: Policy[];
+		vpnCns?: string[];
 		onChange?: () => void | Promise<void>;
 	} = $props();
 
 	let err = $state<string | null>(null);
 	let busy = $state(false);
 
+	let formTarget = $state<TargetType>('ip');
 	let formIp = $state('');
+	let formCn = $state('');
 	let formLabel = $state('');
 	let formCat = $state<CategoryId>('social');
 	let formStart = $state('09:00');
@@ -52,8 +59,15 @@
 		formDays = formDays.includes(d) ? formDays.filter((x) => x !== d) : [...formDays, d].sort();
 	}
 
+	function policyTargetLabel(p: Policy): string {
+		if (p.target_type === 'vpn_cn' && p.vpn_cn) return `CN ${p.vpn_cn}`;
+		return p.ip || '—';
+	}
+
 	async function savePolicy() {
-		if (busy || !formIp.trim()) return;
+		if (busy) return;
+		if (formTarget === 'ip' && !formIp.trim()) return;
+		if (formTarget === 'vpn_cn' && !formCn.trim()) return;
 		busy = true;
 		err = null;
 		const res = await apiFetch('/api/admin/categories', {
@@ -63,7 +77,9 @@
 				type: 'policy',
 				policy: {
 					id: crypto.randomUUID(),
-					ip: formIp.trim(),
+					target_type: formTarget,
+					ip: formTarget === 'ip' ? formIp.trim() : '',
+					vpn_cn: formTarget === 'vpn_cn' ? formCn.trim() : null,
 					category_id: formCat,
 					label: formLabel.trim() || null,
 					enabled: formEnabled,
@@ -80,6 +96,7 @@
 			return;
 		}
 		formIp = '';
+		formCn = '';
 		formLabel = '';
 		await onChange?.();
 	}
@@ -102,10 +119,11 @@
 </script>
 
 <div class="catPol">
-	<h3 class="catPol__h3">Horarios por categoría (por IP)</h3>
+	<h3 class="catPol__h3">Horarios por categoría (IP o usuario VPN)</h3>
 	<p class="muted catPol__hint">
-		En las franjas activas se aplica el grupo Pi-hole <code class="mono">panel-cat-*</code> (bloqueo DNS de los
-		dominios de esa categoría). Rellena dominios en cada categoría arriba.
+		En las franjas activas se aplica el grupo Pi-hole <code class="mono">panel-cat-*</code>. Por
+		<strong>usuario VPN</strong> se usan las IPs del histórico OpenVPN (CN); conviene que haya clientes conectados
+		recientemente o visitar OpenVPN para actualizar el mapa.
 	</p>
 
 	<form
@@ -115,11 +133,34 @@
 			savePolicy();
 		}}
 	>
-		<div class="catPol__grid">
-			<label class="catPol__field">
-				<span class="muted">IP del dispositivo</span>
-				<input class="input mono" bind:value={formIp} required placeholder="192.0.2.10" />
+		<fieldset class="catPol__target">
+			<legend class="muted">Aplicar a</legend>
+			<label class="catPol__radio">
+				<input type="radio" name="target" value="ip" bind:group={formTarget} />
+				IP en Pi-hole
 			</label>
+			<label class="catPol__radio">
+				<input type="radio" name="target" value="vpn_cn" bind:group={formTarget} />
+				Usuario VPN (CN)
+			</label>
+		</fieldset>
+		<div class="catPol__grid">
+			{#if formTarget === 'ip'}
+				<label class="catPol__field">
+					<span class="muted">IP del dispositivo</span>
+					<input class="input mono" bind:value={formIp} required placeholder="192.0.2.10" />
+				</label>
+			{:else}
+				<label class="catPol__field">
+					<span class="muted">CN OpenVPN</span>
+					<input class="input mono" list="vpn-cn-list" bind:value={formCn} required placeholder="alumno1" />
+					<datalist id="vpn-cn-list">
+						{#each vpnCns as cn (cn)}
+							<option value={cn}></option>
+						{/each}
+					</datalist>
+				</label>
+			{/if}
 			<label class="catPol__field">
 				<span class="muted">Etiqueta (opcional)</span>
 				<input class="input" bind:value={formLabel} placeholder="Portátil Juan" />
@@ -154,7 +195,11 @@
 			<input type="checkbox" bind:checked={formEnabled} />
 			Activa
 		</label>
-		<button type="submit" class="btn btnAccent" disabled={busy || !formIp.trim()}>
+		<button
+			type="submit"
+			class="btn btnAccent"
+			disabled={busy || (formTarget === 'ip' ? !formIp.trim() : !formCn.trim())}
+		>
 			{busy ? 'Guardando…' : 'Añadir política'}
 		</button>
 	</form>
@@ -164,14 +209,14 @@
 	{/if}
 
 	{#if policies.length === 0}
-		<p class="muted">No hay políticas por horario. Solo se aplican dominios de categoría si las defines arriba.</p>
+		<p class="muted">No hay políticas por horario.</p>
 	{:else}
 		<ul class="catPol__list">
 			{#each policies as p (p.id)}
 				<li class="catPol__item" class:catPol__item--off={!p.enabled}>
 					<div>
-						<strong>{p.label ?? p.ip}</strong>
-						<span class="mono muted"> · {p.ip}</span>
+						<strong>{p.label ?? policyTargetLabel(p)}</strong>
+						<span class="mono muted"> · {policyTargetLabel(p)}</span>
 						<div class="muted catPol__meta">
 							{catLabels[p.category_id] ?? p.category_id} · {p.start}–{p.end}
 							·
@@ -209,6 +254,24 @@
 		flex-direction: column;
 		gap: 10px;
 		margin-bottom: 14px;
+	}
+	.catPol__target {
+		border: none;
+		padding: 0;
+		margin: 0;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 12px;
+	}
+	.catPol__target legend {
+		width: 100%;
+		font-size: 12px;
+	}
+	.catPol__radio {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		font-size: 13px;
 	}
 	.catPol__grid {
 		display: grid;

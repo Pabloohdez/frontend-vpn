@@ -127,3 +127,25 @@ export function readPrunedIpCnHistory() {
 	return history;
 }
 
+/** Actualiza histórico IP↔CN desde VM1 (best-effort, p. ej. antes de políticas por CN). */
+export async function refreshIpCnHistoryBestEffort(fetchFn: typeof fetch) {
+	const baseUrl = (env.VPN_API_BASE_URL ?? '').trim();
+	const apiKey = (env.VPN_API_KEY ?? '').trim();
+	if (!baseUrl || !apiKey) return;
+	try {
+		const { fetchVm1 } = await import('$lib/server/vm1');
+		const upstream = await fetchVm1(`${baseUrl}/api/v1/status`, {
+			headers: { 'X-API-Key': apiKey }
+		});
+		if (!upstream.ok) return;
+		const data = (await upstream.json().catch(() => null)) as {
+			connected_clients?: unknown[];
+		} | null;
+		if (data?.connected_clients && Array.isArray(data.connected_clients)) {
+			updateIpCnHistoryFromStatus(data.connected_clients as Parameters<typeof updateIpCnHistoryFromStatus>[0]);
+		}
+	} catch {
+		/* ignore */
+	}
+}
+
