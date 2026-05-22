@@ -1,4 +1,3 @@
-/// <reference path="../../qrcode.d.ts" />
 import { authenticator } from 'otplib';
 import QRCode from 'qrcode';
 import { randomBytes, createHash } from 'node:crypto';
