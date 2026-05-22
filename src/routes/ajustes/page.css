@@ -75,6 +75,28 @@
 	font-size: 14px;
 }
 
+.page-settings .settingsCron__pre {
+	margin: 0 0 12px;
+	padding: 12px 14px;
+	border-radius: 10px;
+	border: 1px solid var(--border-default);
+	background: color-mix(in srgb, var(--bg-card) 92%, var(--bg-body));
+	font-size: 12px;
+	line-height: 1.5;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	word-break: break-all;
+}
+
+.page-settings .settingsCron__list {
+	margin: 0;
+	padding-left: 1.2rem;
+	font-size: 13px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
 .page-settings .settingsQuick__hint {
 	font-size: 12px;
 	margin: 0;

@@ -79,5 +79,8 @@ sudo docker compose -f docker-compose.prod.yml up -d --build
 ## Pendiente opcional (fuera del PDF o muy bajo impacto)
 
 - Quitar Redis del código por completo (§1.5 recomienda simplificar; hoy está documentado como opcional en [`REDIS.md`](./REDIS.md)).
-- Export `.xlsx` nativo (hoy `.xls` SpreadsheetML vía `?format=xls` y botones Excel en UI).
-- Homogeneizar estilo `panel*` en Ajustes / Pi-hole hub / Privacidad (cosmético).
+- Excel OpenXML `.xlsx` binario (hoy SpreadsheetML `.xls`/`.xlsx` vía `?format=xls|xlsx`; abre en Excel/LibreOffice).
+
+## En el panel (admin)
+
+- **Ajustes → Cron en el servidor**: bloque con líneas `crontab` listas para copiar (PDF §4.1).

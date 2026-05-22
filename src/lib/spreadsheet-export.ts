@@ -34,6 +34,15 @@ ${dataRows}
 </Workbook>`;
 }
 
+export function isSpreadsheetFormat(format: string): boolean {
+	const f = format.trim().toLowerCase();
+	return f === 'xls' || f === 'xlsx' || f === 'excel';
+}
+
+export function spreadsheetExtension(format: string): 'xls' | 'xlsx' {
+	return format.trim().toLowerCase() === 'xlsx' ? 'xlsx' : 'xls';
+}
+
 export function downloadSpreadsheet(filename: string, sheetName: string, headers: string[], rows: string[][]) {
 	if (typeof document === 'undefined') return;
 	const xml = buildSpreadsheetXml(sheetName, headers, rows);
@@ -41,7 +50,8 @@ export function downloadSpreadsheet(filename: string, sheetName: string, headers
 	const url = URL.createObjectURL(blob);
 	const a = document.createElement('a');
 	a.href = url;
-	a.download = filename.endsWith('.xls') ? filename : `${filename}.xls`;
+	const hasExt = /\.(xls|xlsx)$/i.test(filename);
+	a.download = hasExt ? filename : `${filename}.xls`;
 	document.body.appendChild(a);
 	a.click();
 	a.remove();

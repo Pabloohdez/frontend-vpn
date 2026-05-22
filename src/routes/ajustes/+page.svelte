@@ -8,6 +8,7 @@
 	import ThreatIntelAdmin from '$lib/ThreatIntelAdmin.svelte';
 	import PiholeGroupsAdmin from '$lib/PiholeGroupsAdmin.svelte';
 	import AlertMailAdmin from '$lib/AlertMailAdmin.svelte';
+	import { buildCronHints, cronCrontabLines } from '$lib/cron-hints';
 	import './page.css';
 
 	let auth = $state<{
@@ -185,6 +186,10 @@
 			vars: ['AUDIT_DB_PATH', 'MASTER_KEY']
 		},
 		{
+			title: 'Cron y alertas (PDF §4.1)',
+			vars: ['CRON_SECRET', 'SMTP_HOST', 'ALERT_EMAIL_TO', 'ALERT_EMAIL_COOLDOWN_MIN']
+		},
+		{
 			title: 'Threat intel y HTTPS',
 			vars: [
 				'THREAT_INTEL_ENABLED',
@@ -357,6 +362,31 @@
 			<p class="muted">Solo el rol admin puede descargar backups.</p>
 		{/if}
 	</section>
+
+	{#if auth?.isAdmin}
+		<section class="panel settingsCron" aria-label="Tareas programadas recomendadas">
+			<h2 class="panel__h2">Cron en el servidor</h2>
+			<p class="muted settingsNote">
+				Define <code class="mono">CRON_SECRET</code> en <code class="mono">.env</code> y sustituye
+				<code class="mono">TU_CRON_SECRET</code> en las líneas. Ajusta la URL si el panel no escucha en el puerto
+				2346. Ver también <code class="mono">scripts/backup-data.sh</code>.
+			</p>
+			<pre class="settingsCron__pre mono" aria-label="Entradas crontab sugeridas">{cronCrontabLines(
+				'http://127.0.0.1:2346',
+				'TU_CRON_SECRET'
+			).join('\n')}</pre>
+			<ul class="settingsCron__list muted">
+				{#each buildCronHints() as job (job.id)}
+					<li>
+						<strong>{job.label}</strong> — <span class="mono">{job.schedule}</span>
+						{#if job.note}
+							<span> ({job.note})</span>
+						{/if}
+					</li>
+				{/each}
+			</ul>
+		</section>
+	{/if}
 
 	<section class="panel">
 		<h2 class="panel__h2">Categorías (Pi-hole)</h2>

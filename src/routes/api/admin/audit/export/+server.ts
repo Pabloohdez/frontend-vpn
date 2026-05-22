@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types';
 import { isAuditorOrAdminFromRequestCookie } from '$lib/server/auth';
 import { listAudit } from '$lib/server/audit';
-import { buildSpreadsheetXml } from '$lib/spreadsheet-export';
+import { buildSpreadsheetXml, isSpreadsheetFormat, spreadsheetExtension } from '$lib/spreadsheet-export';
 
 export const prerender = false;
 
@@ -35,7 +35,8 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	const stamp = new Date().toISOString().slice(0, 10);
 	const format = (url.searchParams.get('format') ?? 'csv').trim().toLowerCase();
 
-	if (format === 'xls' || format === 'excel') {
+	if (isSpreadsheetFormat(format)) {
+		const ext = spreadsheetExtension(format);
 		const dataRows = rows.map((r) => [
 			r.ts,
 			r.actor,
@@ -50,7 +51,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 			status: 200,
 			headers: {
 				'content-type': 'application/vnd.ms-excel; charset=utf-8',
-				'content-disposition': `attachment; filename="audit-${stamp}.xls"`,
+				'content-disposition': `attachment; filename="audit-${stamp}.${ext}"`,
 				'cache-control': 'no-store'
 			}
 		});

@@ -135,9 +135,10 @@
 		return q;
 	}
 
-	function serverExportUrl(format: 'csv' | 'xls' = 'csv') {
+	function serverExportUrl(format: 'csv' | 'xls' | 'xlsx' = 'csv') {
 		const q = serverExportQuery();
 		if (format === 'xls') q.set('format', 'xls');
+		if (format === 'xlsx') q.set('format', 'xlsx');
 		return `/api/admin/audit/export?${q.toString()}`;
 	}
 
