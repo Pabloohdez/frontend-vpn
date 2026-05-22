@@ -24,6 +24,9 @@ describe('alert-mail cooldown', () => {
 	});
 
 	it('shouldSendAlert allows first send then blocks', async () => {
+		process.env.ALERT_MAIL_STATE_PATH = stateFile;
+		process.env.ALERT_EMAIL_COOLDOWN_MIN = '30';
+		vi.resetModules();
 		const { shouldSendAlert } = await import('./alert-mail');
 		expect(shouldSendAlert('test:key')).toBe(true);
 		fs.writeFileSync(

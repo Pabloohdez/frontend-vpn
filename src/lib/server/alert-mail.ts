@@ -5,11 +5,13 @@ import { sendMail, readAlertRecipients, isMailConfigured } from '$lib/server/mai
 
 type CooldownStore = Record<string, string>;
 
+function envTrim(name: keyof typeof env): string {
+	const v = env[name] ?? process.env[String(name)];
+	return typeof v === 'string' ? v.trim() : '';
+}
+
 function statePath() {
-	return (
-		(env.ALERT_MAIL_STATE_PATH ?? '').trim() ||
-		path.join(process.cwd(), 'data', 'alert-mail-cooldown.json')
-	);
+	return envTrim('ALERT_MAIL_STATE_PATH') || path.join(process.cwd(), 'data', 'alert-mail-cooldown.json');
 }
 
 function readCooldown(): CooldownStore {
@@ -29,7 +31,7 @@ function writeCooldown(store: CooldownStore) {
 }
 
 function cooldownMinutes(): number {
-	const n = Number(env.ALERT_EMAIL_COOLDOWN_MIN ?? 30);
+	const n = Number(envTrim('ALERT_EMAIL_COOLDOWN_MIN') || 30);
 	return Number.isFinite(n) && n > 0 ? Math.floor(n) : 30;
 }
 

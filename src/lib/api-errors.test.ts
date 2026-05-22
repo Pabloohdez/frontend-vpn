@@ -26,13 +26,21 @@ describe('describeApiFailure', () => {
 		expect(msg).toMatch(/120/);
 	});
 
-	it('incluye hint y upstream_status', () => {
+	it('incluye hint y código HTTP del panel', () => {
 		const f = describeApiFailure(502, {
 			hint: 'Revisa VM1',
 			message: 'Bundle no disponible',
 			upstream_status: 503
 		});
 		expect(f.message).toMatch(/Revisa VM1/);
+		expect(f.message).toMatch(/502/);
+	});
+
+	it('añade upstream_status si el mensaje no menciona VM1', () => {
+		const f = describeApiFailure(502, {
+			message: 'Bundle no disponible',
+			upstream_status: 503
+		});
 		expect(f.message).toMatch(/503/);
 	});
 });

@@ -78,10 +78,20 @@ function feedUrls(): string[] {
 	];
 }
 
-/** Normaliza y valida un nombre de host (FQDN). */
+function isIpv4Literal(host: string): boolean {
+	const m = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+	if (!m) return false;
+	return m.slice(1, 5).every((octet) => {
+		const n = Number(octet);
+		return Number.isInteger(n) && n >= 0 && n <= 255;
+	});
+}
+
+/** Normaliza y valida un nombre de host (FQDN). Rechaza direcciones IPv4. */
 export function normalizeThreatDomain(raw: string): string | null {
 	const s = raw.trim().toLowerCase().replace(/\.$/, '');
 	if (!s || s.length > 253 || s.includes('/') || s.includes(':')) return null;
+	if (isIpv4Literal(s)) return null;
 	if (!/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/.test(s)) {
 		return null;
 	}

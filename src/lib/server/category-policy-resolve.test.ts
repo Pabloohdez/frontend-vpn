@@ -35,6 +35,9 @@ describe('category-policy-resolve', () => {
 		const history = {
 			'203.0.113.2': { cn: 'alumno1', last_seen: '2026-01-01T00:00:00Z', real_lan: '192.0.2.50' }
 		};
-		expect(resolvePolicyTargetIps(policy, history).sort()).toEqual(['203.0.113.2', '192.0.2.50']);
+		const ips = resolvePolicyTargetIps(policy, history);
+		expect(ips).toHaveLength(2);
+		expect(ips).toContain('203.0.113.2');
+		expect(ips).toContain('192.0.2.50');
 	});
 });
