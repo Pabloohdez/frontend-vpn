@@ -1,6 +1,7 @@
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import {
+	assertPiholeConfigured,
 	piholeApiToken,
 	piholeBaseUrl,
 	piholeBaseUrlCandidates,
@@ -199,6 +200,10 @@ export async function fetchPiholeQueryLog(
 	source: 'legacy' | 'v6' | 'empty';
 	piHoleReachable: boolean;
 }> {
+	if (!assertPiholeConfigured().ok) {
+		return { rows: [], source: 'empty', piHoleReachable: false };
+	}
+
 	const token = piholeApiToken();
 	let legacyOk = false;
 
@@ -212,6 +217,9 @@ export async function fetchPiholeQueryLog(
 	}
 
 	const root = piholeRootBaseUrl();
+	if (!root) {
+		return { rows: [], source: 'empty', piHoleReachable: legacyOk };
+	}
 
 	const fetchV6Queries = async (
 		headers: Record<string, string>,

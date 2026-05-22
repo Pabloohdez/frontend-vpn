@@ -30,6 +30,17 @@ export default defineConfig({
 				reuseExistingServer: !process.env.CI,
 				timeout: 120_000,
 				stdout: 'pipe',
-				stderr: 'pipe'
+				stderr: 'pipe',
+				env: {
+					...process.env,
+					SESSION_SECRET:
+						process.env.SESSION_SECRET ?? 'ci_dummy_secret_minimum_32_chars_long',
+					ADMIN_PASSWORD: process.env.ADMIN_PASSWORD ?? 'ci_admin',
+					OPERATOR_PASSWORD: process.env.OPERATOR_PASSWORD ?? 'ci_operator',
+					// E2E/CI: sin Pi-hole ni VM1; evita ticks que llamen APIs externas.
+					PIHOLE_BASE_URL: process.env.PIHOLE_BASE_URL ?? '',
+					VPN_API_BASE_URL: process.env.VPN_API_BASE_URL ?? '',
+					VPN_API_KEY: process.env.VPN_API_KEY ?? ''
+				}
 			}
 });
