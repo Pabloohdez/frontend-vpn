@@ -33,8 +33,8 @@ describe('category-policy-resolve', () => {
 			days: []
 		};
 		const history = {
-			'10.8.0.2': { cn: 'alumno1', last_seen: '2026-01-01T00:00:00Z', real_lan: '192.168.1.50' }
+			'203.0.113.2': { cn: 'alumno1', last_seen: '2026-01-01T00:00:00Z', real_lan: '192.0.2.50' }
 		};
-		expect(resolvePolicyTargetIps(policy, history).sort()).toEqual(['10.8.0.2', '192.168.1.50']);
+		expect(resolvePolicyTargetIps(policy, history).sort()).toEqual(['203.0.113.2', '192.0.2.50']);
 	});
 });

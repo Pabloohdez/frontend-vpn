@@ -89,3 +89,33 @@
 .page-dashboard .dashSwatch--block {
 	background: #dc2626;
 }
+.page-dashboard .dashPatterns {
+	margin-top: 8px;
+}
+.page-dashboard .dashPatterns__head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 8px;
+	margin-bottom: 10px;
+}
+.page-dashboard .dashPatterns__meta {
+	font-size: 12px;
+}
+.page-dashboard .dashPatterns__insight {
+	margin: 0 0 12px;
+	font-size: 14px;
+	line-height: 1.45;
+}
+.page-dashboard .dashPatterns__h3 {
+	margin: 0 0 8px;
+	font-size: 14px;
+	font-weight: 600;
+}
+.page-dashboard .dashGrid--patterns .dashChart {
+	min-width: 0;
+}
+.page-dashboard .dashPatterns__forecastNote {
+	margin-top: 6px;
+}

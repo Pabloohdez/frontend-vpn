@@ -19,7 +19,15 @@ export const POST: RequestHandler = async ({ request }) => {
 	const v = verifyTotpSetup(code);
 	if (!v.ok) return json({ error: 'invalid_code' }, { status: 400 });
 
-	enableTotp();
-	return json({ ok: true, status: totpStatus() }, { headers: { 'cache-control': 'no-store' } });
+	try {
+		enableTotp();
+		return json({ ok: true, status: totpStatus() }, { headers: { 'cache-control': 'no-store' } });
+	} catch (e: unknown) {
+		const msg = String((e as Error)?.message ?? e);
+		return json(
+			{ error: 'storage_error', message: msg || 'No se pudo guardar el estado 2FA.' },
+			{ status: 500, headers: { 'cache-control': 'no-store' } }
+		);
+	}
 };
 

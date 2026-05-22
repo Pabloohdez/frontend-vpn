@@ -339,3 +339,54 @@
 	margin-top: 14px;
 	font-size: 13px;
 }
+
+/* Paginación de tablas (auditoría, DNS) */
+.tablePager {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-top: 14px;
+	padding-top: 12px;
+	border-top: 1px solid var(--border-subtle);
+}
+
+.tablePager__info {
+	font-size: 13px;
+	color: var(--color-muted);
+}
+
+.tablePager__btns {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.tablePager__page {
+	font-size: 13px;
+	min-width: 4.5rem;
+	text-align: center;
+}
+
+.dnsLoadMore,
+.tablePager {
+	font-variant-numeric: tabular-nums;
+}
+
+.staleBanner strong {
+	display: block;
+	margin-bottom: 4px;
+}
+
+.inp--compact {
+	min-width: 7rem;
+	padding: 6px 10px;
+	font-size: 13px;
+}
+
+.refreshSelect {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}

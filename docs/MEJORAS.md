@@ -1,47 +1,83 @@
 # Hoja de ruta — `mejoras_fronted-vpn.pdf`
 
-Estado de las prácticas del PDF. Prioridad sugerida en el documento: **producción → backup → healthcheck → resiliencia upstream → APIs vacías → `.env` → caché → UX**.
+Estado del PDF (mayo 2026). Casi todo el documento está cubierto en código.
 
 | ID | Tarea | Prioridad | Estado |
 |----|--------|-----------|--------|
-| 1.1 | Producción (`docker-compose.prod.yml`, build Node) | Alta | Hecho |
-| 1.2 | Healthcheck en compose | Alta | Hecho (`docker-compose.prod.yml`) |
-| 1.3 | Caída VM1/Pi-hole + último estado | Media | Hecho (`upstream-last-known`, respuestas `stale`) |
-| 1.4 | Backup diario `data/` | Alta | Script + `POST /api/cron/data-backup` |
-| 1.5 | Redis opcional | Baja | Sin cambio (documentado en `.env.example`) |
-| 2.1 | Caché llamadas VM1/Pi-hole | Media | Hecho (`upstream-cache.ts`, TTL por env) |
-| 3.1 | Auto-refresco configurable | Media | Hecho (OpenVPN, `refresh-prefs.ts`) |
-| 3.2 | Skeletons / errores claros | Baja | Parcial |
-| 3.3 | Paginación/búsqueda tablas | Media | Parcial (auditoría con filtros) |
-| 3.4 | Modo oscuro / responsive | Baja | Parcial (`ThemeToggle`, hub móvil) |
-| 4.1 | APIs `cron/watchdog`, `admin/activity` | Media | Hecho |
-| 4.2 | Export CSV auditoría | Baja | Hecho (`/api/admin/audit/export`) |
-| 4.3 | Alertas email | Media | Solo UI (sin SMTP) |
-| 4.4 | Dashboard unificado inicio | Baja | Hecho (`/api/admin/overview` + tarjeta inicio) |
-| 5.1 | Unificar `timingSafeEqual` strings | Baja | Hecho (`crypto-utils.ts`) |
-| 5.2 | Consolidar CSS | Baja | Pendiente |
-| 5.3 | Más tests | Baja | Parcial |
-| 6.x | Secretos `.env` | Media | Documentado; no tocar `.env` real en servidor |
+| 1.1 | Producción (`docker-compose.prod.yml`) | Alta | ✅ |
+| 1.2 | Healthcheck en compose | Alta | ✅ |
+| 1.3 | Caída VM1/Pi-hole + último estado | Media | ✅ |
+| 1.4 | Backup diario `data/` | Alta | ✅ API + script |
+| 1.5 | Redis opcional | Baja | ✅ Documentado [`REDIS.md`](./REDIS.md) |
+| 2.1 | Caché VM1/Pi-hole | Media | ✅ |
+| 3.1 | Auto-refresco configurable | Media | ✅ OpenVPN, Pi-hole, Seguridad, **DNS** |
+| 3.2 | Skeletons / errores claros | Baja | ✅ |
+| 3.3 | Paginación/búsqueda tablas | Media | ✅ Auditoría; DNS con filtros + «cargar más» + CSV |
+| 3.4 | Modo oscuro / responsive | Baja | ✅ |
+| 4.1 | APIs cron / activity | Media | ✅ `activity`, cron DNS histórico, watchdog, backup |
+| 4.2 | Export CSV | Baja | ✅ Auditoría + consultas DNS filtradas |
+| 4.3 | Alertas email (incl. DNS) | Media | ✅ SMTP; cron incluye anomalías DNS y tunelización |
+| 4.4 | Dashboard unificado | Baja | ✅ Overview en inicio + tarjeta Dashboard |
+| 4.5 | Histórico DNS + patrones | — | ✅ (extra) `dns-hourly-history`, predicción |
+| 5.1 | `timingSafeEqual` unificado | Baja | ✅ |
+| 5.2 | Consolidar CSS | Baja | ✅ `panel-ui.css` |
+| 5.3 | Tests login / permisos / env | Baja | ✅ `auth.test`, `permissions`, `env-security` |
+| 6.x | Avisos `.env` en panel | Media | ✅ `getEnvSecurityWarnings()` en overview (admin) |
 
-## Cron recomendado (host)
-
-```cron
-# Backup diario 02:00
-0 2 * * * curl -fsS -X POST -H "X-Cron-Secret: TU_SECRETO" http://127.0.0.1:2346/api/cron/data-backup
-
-# Watchdog cada 5 min
-*/5 * * * * curl -fsS -X POST -H "X-Cron-Secret: TU_SECRETO" http://127.0.0.1:2346/api/cron/watchdog
-```
+## Correo (§4.3)
 
 Variables en `.env`:
 
-- `CRON_SECRET` — obligatorio para endpoints `/api/cron/*`
-- `BACKUP_DEST_DIR` — opcional (default `./backups`)
-- `UPSTREAM_CACHE_*_SEC` — TTL caché en memoria
-- `UPSTREAM_LAST_KNOWN_PATH` — opcional (default `data/upstream-last-known.json`)
+```env
+SMTP_HOST=smtp.ejemplo.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=usuario
+SMTP_PASS=contraseña
+ALERT_EMAIL_FROM=panel@ejemplo.com
+ALERT_EMAIL_TO=admin@ejemplo.com,ops@ejemplo.com
+ALERT_EMAIL_COOLDOWN_MIN=30
+ALERT_EMAIL_SECURITY=true
+```
 
-## Despliegue producción
+- **Watchdog** — email si VM1 o Pi-hole caen.
+- **Seguridad** — email si hay alertas **críticas** (logins, Pi-hole caído, **actividad DNS inusual**, tunelización).
+- **Prueba** — Ajustes → Alertas por correo.
+
+## Histórico DNS y predicción
+
+- `data/dns-hourly-history.json` — retención `DNS_HISTORY_RETENTION_DAYS` (default 120).
+- `POST /api/cron/dns-history` cada hora.
+- Dashboard → «Patrones y predicción DNS».
+- `GET /api/admin/dns/history?days=90`
+
+## Cron recomendado
+
+```cron
+0 2 * * * curl -fsS -X POST -H "X-Cron-Secret: SECRETO" http://127.0.0.1:2346/api/cron/data-backup
+*/5 * * * * curl -fsS -X POST -H "X-Cron-Secret: SECRETO" http://127.0.0.1:2346/api/cron/watchdog
+0 * * * * curl -fsS -X POST -H "X-Cron-Secret: SECRETO" http://127.0.0.1:2346/api/cron/security-alerts
+5 * * * * curl -fsS -X POST -H "X-Cron-Secret: SECRETO" "http://127.0.0.1:2346/api/cron/dns-history?max_hours=48"
+```
+
+## Secretos (§6) — en el servidor
+
+El inicio muestra avisos si falta `MASTER_KEY`, `SESSION_SECRET` es corto, etc. Generar secretos:
+
+```bash
+openssl rand -hex 32   # SESSION_SECRET y MASTER_KEY
+```
+
+PBKDF2 admin: ver `.env.example`.
+
+## Despliegue
 
 ```bash
 sudo docker compose -f docker-compose.prod.yml up -d --build
 ```
+
+## Pendiente opcional (fuera del PDF o muy bajo impacto)
+
+- Quitar Redis del código por completo (§1.5 recomienda simplificar; hoy está documentado como opcional).
+- Paginación numérica en tabla DNS (hoy «cargar más» + filtros).
+- Export Excel además de CSV.

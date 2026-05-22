@@ -40,10 +40,44 @@
 		series: SeriesPoint[];
 	};
 
+	type WeekdayStat = { dow: number; label: string; avgTotal: number; sampleDays: number };
+	type DailyTotal = {
+		date: string;
+		t: number;
+		total: number;
+		allowed: number;
+		blocked: number;
+	};
+	type ForecastDay = {
+		date: string;
+		t: number;
+		predictedTotal: number;
+		low: number;
+		high: number;
+		dow: number;
+		dowLabel: string;
+	};
+	type DnsPatterns = {
+		daysOfHistory: number;
+		hourBuckets: number;
+		weekdayStats: WeekdayStat[];
+		busiestDays: DailyTotal[];
+		quietestDays: DailyTotal[];
+		forecast: ForecastDay[];
+		trendPct: number | null;
+		insight: string;
+	};
+	type HistoryPayload = { days: number; patterns: DnsPatterns };
+
+	const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
+
 	let range = $state<Range>('24h');
 	let data = $state<Payload | null>(null);
+	let history = $state<HistoryPayload | null>(null);
 	let loading = $state(true);
+	let historyLoading = $state(true);
 	let error = $state<string | null>(null);
+	let historyError = $state<string | null>(null);
 	let needsAuth = $state(false);
 
 	async function load() {
@@ -70,12 +104,51 @@
 		}
 	}
 
+	async function loadHistory() {
+		historyLoading = history === null;
+		historyError = null;
+		try {
+			const res = await fetch('/api/admin/dns/history?days=120', {
+				headers: { 'cache-control': 'no-cache' }
+			});
+			if (!res.ok) {
+				const fail = await describeFetchResponse(res, 'No se pudo cargar el histórico DNS.');
+				if (fail.needsAuth) needsAuth = true;
+				historyError = fail.message;
+				history = null;
+			} else {
+				history = (await res.json()) as HistoryPayload;
+			}
+		} catch (e) {
+			historyError = e instanceof Error ? e.message : 'No se pudo cargar el histórico DNS';
+			history = null;
+		} finally {
+			historyLoading = false;
+		}
+	}
+
+	function weekdayBarPoints(stats: WeekdayStat[]) {
+		return WEEKDAY_ORDER.map((dow) => {
+			const w = stats.find((s) => s.dow === dow);
+			const n = w?.avgTotal ?? 0;
+			return { label: w?.label ?? '—', allowed: n, blocked: 0 };
+		});
+	}
+
 	function setRange(r: Range) {
 		range = r;
 		load();
 	}
 
-	onMount(load);
+	function refreshAll() {
+		load();
+		loadHistory();
+	}
+
+	onMount(() => {
+		load();
+		loadHistory();
+	});
 </script>
 
 <svelte:head>
@@ -116,8 +189,13 @@
 			>
 				{t('dashboard.range30d')}
 			</button>
-			<button type="button" class="btn secondary btnAccent" onclick={load} disabled={loading}>
-				{loading ? t('common.loading') : t('common.refresh')}
+			<button
+				type="button"
+				class="btn secondary btnAccent"
+				onclick={refreshAll}
+				disabled={loading || historyLoading}
+			>
+				{loading || historyLoading ? t('common.loading') : t('common.refresh')}
 			</button>
 		</div>
 	</header>
@@ -228,5 +306,89 @@
 				</div>
 			</section>
 		{/if}
+	{/if}
+
+	{#if !needsAuth}
+		<section class="panel dashPatterns" aria-labelledby="dash-patterns-title">
+			<header class="dashPatterns__head">
+				<div>
+					<h2 class="panel__h2" id="dash-patterns-title">Patrones y predicción DNS</h2>
+					<p class="panelHint">
+						Histórico horario guardado en el panel (hasta ~120 días). Se actualiza cada hora desde
+						Pi-hole.
+					</p>
+				</div>
+				{#if history?.patterns}
+					<span class="dashPatterns__meta muted mono">
+						{history.patterns.daysOfHistory} días · {history.patterns.hourBuckets} h guardadas
+					</span>
+				{/if}
+			</header>
+
+			{#if historyLoading && !history}
+				<Skeleton height="180px" />
+			{:else if historyError}
+				<p class="cardError">{historyError}</p>
+			{:else if history?.patterns}
+				{@const p = history.patterns}
+				<p class="dashPatterns__insight">{p.insight}</p>
+				{#if p.hourBuckets < 24}
+					<p class="panelHint">
+						Aún se está acumulando histórico. Puedes forzar relleno con cron
+						<code>POST /api/cron/dns-history</code> cada hora.
+					</p>
+				{/if}
+
+				<div class="dashGrid dashGrid--patterns">
+					<div class="dashChart">
+						<h3 class="dashPatterns__h3">Promedio por día de la semana</h3>
+						<BarSeries
+							points={weekdayBarPoints(p.weekdayStats)}
+							ariaLabel="Consultas medias por día de la semana"
+						/>
+					</div>
+					<div class="dashChart">
+						<h3 class="dashPatterns__h3">Predicción próximos 7 días</h3>
+						<BarSeries
+							points={p.forecast.map((f) => ({
+								label: `${f.dowLabel} ${f.date.slice(5)}`,
+								allowed: f.predictedTotal,
+								blocked: 0
+							}))}
+							ariaLabel="Estimación de consultas para la próxima semana"
+						/>
+						<p class="panelHint dashPatterns__forecastNote">
+							Estimación según medias históricas por día de la semana
+							{#if p.trendPct !== null}
+								· tendencia reciente {p.trendPct >= 0 ? '+' : ''}{p.trendPct} %
+							{/if}
+						</p>
+					</div>
+				</div>
+
+				<div class="dashGrid">
+					<div>
+						<h3 class="dashPatterns__h3">Días con más consultas</h3>
+						<HBarList
+							rows={p.busiestDays.map((d) => ({
+								label: d.date,
+								count: d.total
+							}))}
+							emptyText="Sin datos aún."
+						/>
+					</div>
+					<div>
+						<h3 class="dashPatterns__h3">Días con menos consultas</h3>
+						<HBarList
+							rows={p.quietestDays.map((d) => ({
+								label: d.date,
+								count: d.total
+							}))}
+							emptyText="Sin datos aún."
+						/>
+					</div>
+				</div>
+			{/if}
+		</section>
 	{/if}
 </main>

@@ -12,6 +12,15 @@ export type DnsTimePoint = {
 
 export type DnsBucketGranularity = 'hour' | 'day';
 
+/** Inicio del bucket horario (epoch s) alineado a la zona horaria local del servidor. */
+export function alignHourEpoch(epochSec: number): number {
+	const stepSec = 3600;
+	const tzOffsetSec = new Date().getTimezoneOffset() * 60;
+	const local = epochSec - tzOffsetSec;
+	const start = local - (local % stepSec);
+	return start + tzOffsetSec;
+}
+
 /**
  * Agrupa filas Pi-hole en buckets de hora o día.
  */
@@ -24,6 +33,7 @@ export function bucketizeQueries(
 	const stepSec = granularity === 'hour' ? 3600 : 86400;
 	const tzOffsetSec = new Date().getTimezoneOffset() * 60; // diff respecto UTC
 	const align = (t: number) => {
+		if (granularity === 'hour') return alignHourEpoch(t);
 		const local = t - tzOffsetSec;
 		const start = local - (local % stepSec);
 		return start + tzOffsetSec;

@@ -7,6 +7,7 @@
 	import CategoryPoliciesAdmin from '$lib/CategoryPoliciesAdmin.svelte';
 	import ThreatIntelAdmin from '$lib/ThreatIntelAdmin.svelte';
 	import PiholeGroupsAdmin from '$lib/PiholeGroupsAdmin.svelte';
+	import AlertMailAdmin from '$lib/AlertMailAdmin.svelte';
 	import './page.css';
 
 	let auth = $state<{
@@ -273,6 +274,7 @@
 
 	{#if auth?.isAdmin}
 		<PanelUsersAdmin />
+		<AlertMailAdmin />
 	{/if}
 
 	<section class="panel">

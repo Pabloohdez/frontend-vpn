@@ -162,25 +162,15 @@
 	margin: 0;
 	display: grid;
 	gap: 12px;
-	grid-template-columns: 1fr;
-}
-
-@media (min-width: 640px) {
-	.page-seguridad .secAnoms__list {
-		grid-template-columns: repeat(2, 1fr);
-	}
-}
-
-@media (min-width: 1200px) {
-	.page-seguridad .secAnoms__list {
-		grid-template-columns: repeat(3, 1fr);
-	}
+	grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+	min-width: 0;
 }
 
 .page-seguridad .secAnom {
 	display: flex;
 	flex-direction: column;
 	gap: 10px;
+	min-width: 0;
 	padding: 14px 16px;
 	border-radius: 14px;
 	border: 1px solid var(--border-default);
@@ -305,17 +295,25 @@
 }
 
 /* —— Amenazas tunneling —— */
+.page-seguridad .secThreats {
+	min-width: 0;
+	overflow-x: hidden;
+}
+
 .page-seguridad .secThreat__domain {
 	margin-top: 0;
 	padding: 8px 10px;
 	border-radius: 8px;
 	border: 1px solid var(--border-subtle);
 	background: color-mix(in srgb, var(--border-subtle) 40%, var(--bg-card));
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
 	font-size: 12px;
+	line-height: 1.4;
 	color: var(--color-muted);
+	white-space: normal;
+	overflow-wrap: anywhere;
+	word-break: break-word;
+	max-height: 5.5em;
+	overflow-y: auto;
 }
 
 .page-seguridad .secAnom__meta {

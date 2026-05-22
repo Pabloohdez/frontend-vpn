@@ -15,6 +15,8 @@ const KNOWN_API_ERRORS: Record<string, string> = {
 	already_enabled: 'El 2FA ya está activo en esta cuenta.',
 	unauthorized: 'No autorizado. Inicia sesión con un rol con permisos.',
 	misconfigured: 'El servidor no está configurado (revisa el .env).',
+	setup_failed: 'No se pudo preparar el 2FA.',
+	storage_error: 'Error al guardar datos en el servidor (revisa permisos de data/).',
 	bad_request: 'Petición inválida.',
 	csrf_invalid: 'Petición rechazada (CSRF). Recarga la página e inténtalo de nuevo.',
 	rate_limited: 'Demasiadas peticiones.',

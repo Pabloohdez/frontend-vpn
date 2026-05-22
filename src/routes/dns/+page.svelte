@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
+	import { readRefreshMs, refreshLabel, refreshPresets, writeRefreshMs } from '$lib/refresh-prefs';
 	import './page.css';
 	import type { PiholeLists } from '$lib/pihole-lists';
 	import { isApplied as isAppliedShared } from '$lib/pihole-lists';
@@ -21,6 +22,8 @@
 	import DnsReportExport from '$lib/DnsReportExport.svelte';
 	import SavedFiltersBar from '$lib/SavedFiltersBar.svelte';
 	import AuthGate from '$lib/AuthGate.svelte';
+	import ErrorPanel from '$lib/ErrorPanel.svelte';
+	import Skeleton from '$lib/Skeleton.svelte';
 	import { describeApiFailure } from '$lib/api-errors';
 	import { apiFetch } from '$lib/api-client';
 
@@ -714,6 +717,22 @@
 	}
 
 	let minsFilterReady = $state(false);
+	let refreshMs = $state(readRefreshMs(0));
+	let refreshInterval: ReturnType<typeof setInterval> | null = null;
+
+	function restartAutoRefresh() {
+		if (refreshInterval) clearInterval(refreshInterval);
+		refreshInterval = null;
+		if (refreshMs > 0) {
+			refreshInterval = setInterval(() => void load(), refreshMs);
+		}
+	}
+
+	function onRefreshChange(ms: number) {
+		refreshMs = ms;
+		writeRefreshMs(ms);
+		restartAutoRefresh();
+	}
 
 	onMount(() => {
 		if (browser) {
@@ -728,8 +747,12 @@
 			if (pd !== null) deviceName = pd;
 			onlyWithDeviceIp = sp.get('only_ip') === '1';
 		}
-		load();
+		load().then(() => restartAutoRefresh());
 		minsFilterReady = true;
+	});
+
+	onDestroy(() => {
+		if (refreshInterval) clearInterval(refreshInterval);
 	});
 
 	function clearAllFilters() {
@@ -785,6 +808,17 @@
 			<p class="dnsHero__sub">Registro en vivo de Pi-hole con correlación VPN, LAN y dispositivos.</p>
 		</div>
 		<div class="dnsHero__actions">
+			<label class="refreshSelect muted">
+				<span class="visually-hidden">Auto-refresco</span>
+				<select
+					value={String(refreshMs)}
+					onchange={(e) => onRefreshChange(Number((e.currentTarget as HTMLSelectElement).value))}
+				>
+					{#each refreshPresets() as ms (ms)}
+						<option value={String(ms)}>{refreshLabel(ms)}</option>
+					{/each}
+				</select>
+			</label>
 			<button
 				type="button"
 				class="btn secondary"
@@ -915,9 +949,12 @@
 	{#if needsAuth}
 		<AuthGate message={error ?? undefined} nextPath="/dns" />
 	{:else if error}
-		<section class="panel cardError">{error}</section>
+		<ErrorPanel title="No se pudieron cargar las consultas DNS" detail={error} onRetry={load} />
 	{:else if loading}
-		<section class="dnsPanel dnsPanel--loading"><p class="muted">Cargando consultas…</p></section>
+		<section class="dnsPanel" aria-busy="true">
+			<Skeleton height="18px" width="30%" />
+			<div style="margin-top:14px"><Skeleton height="320px" /></div>
+		</section>
 	{:else}
 		<section class="dnsPanel dnsPanel--results">
 			{#if queries.length > 0}

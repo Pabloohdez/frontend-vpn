@@ -2,15 +2,23 @@ import { createDecipheriv, createCipheriv, createHash, randomBytes } from 'node:
 import { env } from '$env/dynamic/private';
 
 function keyBytes(): Buffer {
-	const raw = (env.MASTER_KEY ?? '').trim();
-	if (!raw) throw new Error('MASTER_KEY missing');
-	// Acepta hex o texto. Derivamos a 32 bytes.
-	try {
-		if (/^[0-9a-f]{64}$/i.test(raw)) return Buffer.from(raw, 'hex');
-	} catch {
-		/* ignore */
+	const raw = (env.MASTER_KEY ?? process.env.MASTER_KEY ?? '').trim();
+	if (raw) {
+		try {
+			if (/^[0-9a-f]{64}$/i.test(raw)) return Buffer.from(raw, 'hex');
+		} catch {
+			/* ignore */
+		}
+		return createHash('sha256').update(raw, 'utf8').digest();
 	}
-	return createHash('sha256').update(raw, 'utf8').digest();
+
+	// Sin MASTER_KEY: derivar de SESSION_SECRET (mín. 32) para que 2FA y auditoría firmada funcionen en LAN.
+	const session = (env.SESSION_SECRET ?? process.env.SESSION_SECRET ?? '').trim();
+	if (session.length >= 32) {
+		return createHash('sha256').update(`totp-at-rest:${session}`, 'utf8').digest();
+	}
+
+	throw new Error('MASTER_KEY_or_SESSION_SECRET_missing');
 }
 
 export function encryptJson(obj: unknown): { v: 1; iv: string; ct: string; tag: string } {

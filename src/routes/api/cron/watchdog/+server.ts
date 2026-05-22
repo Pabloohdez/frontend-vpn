@@ -8,6 +8,7 @@ import { assertPiholeConfigured, piholeApiToken } from '$lib/server/pihole';
 import { piholeAdminApiUrl } from '$lib/server/pihole-list-fetch';
 import { writeAudit } from '$lib/server/audit';
 import { recordLastKnown } from '$lib/server/upstream-last-known';
+import { notifyWatchdogFailure } from '$lib/server/alert-mail';
 
 export const prerender = false;
 
@@ -99,5 +100,12 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	}
 
 	const allOk = Object.values(checks).every((c) => c.ok);
-	return json({ ok: allOk, checks, at: new Date().toISOString() }, { status: allOk ? 200 : 503 });
+	let mail: Awaited<ReturnType<typeof notifyWatchdogFailure>> | null = null;
+	if (!allOk) {
+		mail = await notifyWatchdogFailure(checks);
+	}
+	return json(
+		{ ok: allOk, checks, mail, at: new Date().toISOString() },
+		{ status: allOk ? 200 : 503 }
+	);
 };

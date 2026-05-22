@@ -1,7 +1,10 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import AuthGate from '$lib/AuthGate.svelte';
+	import ErrorPanel from '$lib/ErrorPanel.svelte';
+	import Skeleton from '$lib/Skeleton.svelte';
 	import { describeFetchResponse } from '$lib/api-errors';
+	import { readRefreshMs, refreshLabel, refreshPresets, writeRefreshMs } from '$lib/refresh-prefs';
 	import './page.css';
 
 	type DnsInsights = {
@@ -70,6 +73,8 @@
 	let windowHours = $state(24);
 	let onlyCritical = $state(false);
 	let showAllAnoms = $state(false);
+	let refreshMs = $state(readRefreshMs(0));
+	let interval: ReturnType<typeof setInterval> | null = null;
 	const ANOM_PREVIEW = 8;
 
 	const visibleAlerts = $derived(
@@ -132,8 +137,27 @@
 		loading = false;
 	}
 
+	function restartAutoRefresh() {
+		if (interval) clearInterval(interval);
+		interval = null;
+		if (refreshMs > 0 && !needsAuth) {
+			interval = setInterval(load, refreshMs);
+		}
+	}
+
+	function onRefreshChange(ms: number) {
+		refreshMs = ms;
+		writeRefreshMs(ms);
+		restartAutoRefresh();
+	}
+
 	onMount(() => {
-		load();
+		refreshMs = readRefreshMs(0);
+		load().then(() => restartAutoRefresh());
+	});
+
+	onDestroy(() => {
+		if (interval) clearInterval(interval);
 	});
 </script>
 
@@ -157,6 +181,18 @@
 				<input type="checkbox" bind:checked={onlyCritical} />
 				Solo críticos
 			</label>
+			<label class="refreshSelect muted">
+				<span class="visually-hidden">Auto-refresco</span>
+				<select
+					class="inp inp--compact"
+					value={String(refreshMs)}
+					onchange={(e) => onRefreshChange(Number((e.currentTarget as HTMLSelectElement).value))}
+				>
+					{#each refreshPresets() as ms (ms)}
+						<option value={String(ms)}>{refreshLabel(ms)}</option>
+					{/each}
+				</select>
+			</label>
 			<button type="button" class="btn secondary btnAccent" disabled={loading} onclick={load}>
 				{loading ? 'Cargando…' : 'Actualizar'}
 			</button>
@@ -166,9 +202,16 @@
 	{#if needsAuth}
 		<AuthGate message={error ?? undefined} nextPath="/seguridad" />
 	{:else if error}
-		<section class="panel cardError">{error}</section>
+		<ErrorPanel title="Error de seguridad" detail={error} onRetry={load} />
 	{:else if loading && !data}
-		<section class="panel panel--loading"><p class="muted">Cargando métricas…</p></section>
+		<section class="panel" aria-busy="true">
+			<Skeleton height="18px" width="35%" />
+			<div style="margin-top:14px;display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
+				<Skeleton height="100px" />
+				<Skeleton height="100px" />
+				<Skeleton height="100px" />
+			</div>
+		</section>
 	{:else if data}
 		{#if criticalCount > 0 && !onlyCritical}
 			<p class="secCritBanner muted">
@@ -221,11 +264,16 @@
 				</p>
 				<ul class="secAnoms__list">
 					{#each shownAnomalies as a (a.client)}
+						{@const displayName = a.label ?? a.client}
+						{@const showClientLine =
+							Boolean(a.label?.trim()) && a.label!.trim() !== a.client.trim()}
 						<li class="secAnom secAnom--{a.severity}">
 							<div class="secAnom__top">
 								<div class="secAnom__identity">
-									<strong class="secAnom__name">{a.label ?? a.client}</strong>
-									<span class="secAnom__client mono">{a.client}</span>
+									<strong class="secAnom__name" title={displayName}>{displayName}</strong>
+									{#if showClientLine}
+										<span class="secAnom__client mono" title={a.client}>{a.client}</span>
+									{/if}
 								</div>
 								<span class="secBadge secBadge--{a.severity}">{anomalyBadge(a)}</span>
 							</div>
@@ -267,11 +315,16 @@
 				</p>
 				<ul class="secAnoms__list">
 					{#each visibleThreats as t (`${t.kind}-${t.client}-${t.domain}`)}
+						{@const displayName = t.label ?? t.client}
+						{@const showClientLine =
+							Boolean(t.label?.trim()) && t.label!.trim() !== t.client.trim()}
 						<li class="secAnom secAnom--{t.score >= 80 ? 'critical' : 'warn'}">
 							<div class="secAnom__top">
 								<div class="secAnom__identity">
-									<strong class="secAnom__name">{t.label ?? t.client}</strong>
-									<span class="secAnom__client mono">{t.client}</span>
+									<strong class="secAnom__name" title={displayName}>{displayName}</strong>
+									{#if showClientLine}
+										<span class="secAnom__client mono" title={t.client}>{t.client}</span>
+									{/if}
 								</div>
 								<span class="secBadge secBadge--{t.score >= 80 ? 'critical' : 'warn'}">
 									{t.kind === 'txt_suspect' ? 'TXT' : `Score ${t.score}`}

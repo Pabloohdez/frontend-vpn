@@ -24,7 +24,8 @@ export { hasPermission, hasStaffReadAccess, listPermissionsForRole } from '$lib/
 import type { AuthRole } from '$lib/server/permissions';
 
 function envTrim(name: keyof typeof env): string {
-	const v = env[name];
+	// Fallback a process.env: en adapter-node a veces private_env y el entorno del contenedor divergen.
+	const v = env[name] ?? process.env[String(name)];
 	return typeof v === 'string' ? v.trim() : '';
 }
 
@@ -38,21 +39,15 @@ function sessionSecretOk() {
 }
 
 function hasAdminCredential() {
-	return Boolean(
-		(env.ADMIN_PASSWORD_PBKDF2 ?? '').trim() || (env.ADMIN_PASSWORD ?? '').trim()
-	);
+	return Boolean(envTrim('ADMIN_PASSWORD_PBKDF2') || envTrim('ADMIN_PASSWORD'));
 }
 
 function hasAuditorCredential() {
-	return Boolean(
-		(env.AUDITOR_PASSWORD_PBKDF2 ?? '').trim() || (env.AUDITOR_PASSWORD ?? '').trim()
-	);
+	return Boolean(envTrim('AUDITOR_PASSWORD_PBKDF2') || envTrim('AUDITOR_PASSWORD'));
 }
 
 function hasOperatorCredential() {
-	return Boolean(
-		(env.OPERATOR_PASSWORD_PBKDF2 ?? '').trim() || (env.OPERATOR_PASSWORD ?? '').trim()
-	);
+	return Boolean(envTrim('OPERATOR_PASSWORD_PBKDF2') || envTrim('OPERATOR_PASSWORD'));
 }
 
 export function isAuthConfigured() {
@@ -220,11 +215,7 @@ function roleFromSessionValue(raw: string | undefined | null): AuthRole | null {
 
 	const payload = `${issuedAt}.${role}`;
 	const expected = hmac(payload);
-	try {
-		return timingSafeEqual(Buffer.from(sig), Buffer.from(expected)) ? (role as AuthRole) : null;
-	} catch {
-		return null;
-	}
+	return timingSafeEqualString(sig, expected) ? (role as AuthRole) : null;
 }
 
 export function requirePermissionFromRequestCookie(

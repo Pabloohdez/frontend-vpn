@@ -4,6 +4,7 @@ import { isStaffFromRequestCookie } from '$lib/server/auth';
 import { getLastKnown } from '$lib/server/upstream-last-known';
 import { listAudit } from '$lib/server/audit';
 import { env } from '$env/dynamic/private';
+import { getEnvSecurityWarnings } from '$lib/server/env-security';
 
 export const prerender = false;
 
@@ -61,6 +62,7 @@ export const GET: RequestHandler = async ({ request, fetch, url }) => {
 			security_alert_count: Array.isArray(security?.alerts) ? security.alerts.length : 0,
 			security_alerts_preview: Array.isArray(security?.alerts) ? security.alerts.slice(0, 5) : [],
 			recent_audit,
+			env_warnings: getEnvSecurityWarnings(),
 			generated_at: new Date().toISOString()
 		},
 		{ headers: { 'cache-control': 'no-store' } }

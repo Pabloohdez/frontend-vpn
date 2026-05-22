@@ -153,6 +153,15 @@
 	);
 }
 
+.launcher__card--dash {
+	border-color: color-mix(in srgb, #f59e0b 45%, var(--border-default));
+	background: linear-gradient(
+		145deg,
+		color-mix(in srgb, #f59e0b 10%, var(--bg-card)),
+		var(--bg-card)
+	);
+}
+
 .launcher__card--audit {
 	border-color: color-mix(in srgb, #a78bfa 45%, var(--border-default));
 	background: linear-gradient(
@@ -241,6 +250,79 @@
 .launcherOverview__chip--warn {
 	text-decoration: none;
 	border-color: color-mix(in srgb, var(--warn, #d97706) 50%, transparent);
+}
+
+.launcherWarnings {
+	list-style: none;
+	margin: 12px 0 0;
+	padding: 0;
+	text-align: left;
+	max-width: 42rem;
+	width: 100%;
+}
+
+.launcherWarnings__item {
+	font-size: 12px;
+	padding: 8px 12px;
+	border-radius: 8px;
+	margin-bottom: 6px;
+	background: color-mix(in srgb, var(--warn, #d97706) 12%, var(--bg-card));
+	border: 1px solid color-mix(in srgb, var(--warn, #d97706) 35%, transparent);
+}
+
+.launcherAlerts,
+.launcherActivity {
+	margin-top: 14px;
+	text-align: left;
+	max-width: 42rem;
+	width: 100%;
+}
+
+.launcherAlerts__title,
+.launcherActivity__title {
+	margin: 0 0 8px;
+	font-size: 13px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	opacity: 0.75;
+}
+
+.launcherAlerts__list,
+.launcherActivity__list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	font-size: 13px;
+}
+
+.launcherAlerts__list a {
+	color: var(--color-accent, #0d9488);
+	text-decoration: none;
+}
+
+.launcherAlerts__list a:hover {
+	text-decoration: underline;
+}
+
+.launcherActivity__list li {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	padding: 6px 0;
+	border-bottom: 1px solid var(--border-default);
+}
+
+.launcherActivity__fail {
+	color: var(--danger, #dc2626);
+	font-size: 11px;
+	font-weight: 600;
+}
+
+.launcherActivity__more {
+	display: inline-block;
+	margin-top: 8px;
+	font-size: 12px;
 }
 
 /* Pantallas bajas: modo compacto para evitar scroll */

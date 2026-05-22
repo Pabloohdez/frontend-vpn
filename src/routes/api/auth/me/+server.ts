@@ -14,10 +14,11 @@ import { totpStatus } from '$lib/server/totp';
 
 export const GET: RequestHandler = async ({ request, cookies }) => {
 	const cookieHeader = request.headers.get('cookie');
+	// Priorizar Cookie header parseado (más fiable con curl/proxies que cookies.get en algunos despliegues).
 	const role =
+		getRoleFromRequestCookie(cookieHeader) ??
 		(await getRoleFromEventCookiesAsync({ cookies })) ??
-		getRoleFromEventCookies(cookies) ??
-		getRoleFromRequestCookie(cookieHeader);
+		getRoleFromEventCookies(cookies);
 	const isAdmin = role === 'admin';
 	const sessionExpiresAt = getSessionExpiresAtMs(cookieHeader);
 	const totp = isAdmin ? totpStatus() : null;

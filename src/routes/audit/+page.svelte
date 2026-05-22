@@ -1,7 +1,11 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
 	import AuthGate from '$lib/AuthGate.svelte';
+	import ErrorPanel from '$lib/ErrorPanel.svelte';
+	import Skeleton from '$lib/Skeleton.svelte';
+	import TablePager from '$lib/TablePager.svelte';
 	import { describeFetchResponse } from '$lib/api-errors';
+	import { filterRowsByQuery, paginate } from '$lib/table-pager';
 	import './page.css';
 
 	type Row = {
@@ -30,6 +34,14 @@
 	let cn = $state('');
 	let ok = $state(''); // '' | '1' | '0'
 	let limit = $state(200);
+	let tableSearch = $state('');
+	let auditPage = $state(1);
+	const AUDIT_PAGE_SIZE = 50;
+
+	const filteredRows = $derived(filterRowsByQuery(rows, tableSearch, (r) =>
+		[r.ts, r.actor, r.action, r.target_cn ?? '', r.remote_ip ?? '', JSON.stringify(r.details ?? '')].join(' ')
+	));
+	const paged = $derived(paginate(filteredRows, auditPage, AUDIT_PAGE_SIZE));
 
 	function pushNotice(kind: Notice['kind'], message: string, ttlMs = 2800) {
 		const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -70,6 +82,7 @@
 			return;
 		}
 		rows = await res.json();
+		auditPage = 1;
 		loading = false;
 
 		if (opts?.notify === 'apply') {
@@ -108,6 +121,18 @@
 	onMount(() => {
 		load();
 	});
+
+	function serverExportUrl() {
+		const q = new URLSearchParams();
+		q.set('limit', String(Math.min(5000, limit || 2000)));
+		if (fromDay) q.set('from', fromDay);
+		if (toDay) q.set('to', toDay);
+		if (action) q.set('action', action);
+		if (cn) q.set('cn', cn);
+		if (ok === '1') q.set('success', 'true');
+		if (ok === '0') q.set('success', 'false');
+		return `/api/admin/audit/export?${q.toString()}`;
+	}
 
 	function download(kind: 'json' | 'csv') {
 		const data = rows;
@@ -186,14 +211,22 @@
 			<p class="panelHero__sub">Registro de acciones administrativas: logins, usuarios, listas y más.</p>
 		</div>
 		<div class="panelHero__actions">
+			<a
+				class="btn secondary"
+				href={serverExportUrl()}
+				download
+				aria-label="Descargar auditoría en CSV (servidor, hasta 5000 filas)"
+			>
+				CSV servidor
+			</a>
 			<button
 				type="button"
 				class="btn secondary"
 				onclick={() => download('csv')}
 				disabled={loading || rows.length === 0}
-				aria-label="Descargar auditoría en CSV"
+				aria-label="Descargar vista actual en CSV"
 			>
-				CSV
+				CSV vista
 			</button>
 			<button
 				type="button"
@@ -267,9 +300,12 @@
 	{#if needsAuth}
 		<AuthGate message={error ?? undefined} nextPath="/audit" />
 	{:else if error}
-		<section class="panel cardError">{error}</section>
+		<ErrorPanel title="No se pudo cargar la auditoría" detail={error} onRetry={() => load()} />
 	{:else if loading}
-		<section class="panel panel--loading"><p class="muted">Cargando registros…</p></section>
+		<section class="panel" aria-busy="true">
+			<Skeleton height="18px" width="40%" />
+			<div style="margin-top:12px"><Skeleton height="280px" /></div>
+		</section>
 	{:else}
 		{#if rows.length >= limit && limit >= 50}
 			<section class="panel panel--warn auditLimitHint">
@@ -290,6 +326,18 @@
 			</section>
 		{:else}
 			<section class="panel">
+				<div class="frow" style="margin-bottom:12px">
+					<label class="lab" for="audit-table-q">Buscar en tabla</label>
+					<input
+						id="audit-table-q"
+						class="inp"
+						type="search"
+						placeholder="acción, actor, CN, IP…"
+						bind:value={tableSearch}
+						oninput={() => (auditPage = 1)}
+						autocomplete="off"
+					/>
+				</div>
 				<div class="panelTableScroll">
 					<table>
 						<caption class="visually-hidden">Registros de auditoría</caption>
@@ -304,7 +352,7 @@
 							</tr>
 						</thead>
 						<tbody>
-							{#each rows as r, idx (`${r.ts}|${idx}|${r.action}|${r.target_cn ?? ''}`)}
+							{#each paged.page as r, idx (`${r.ts}|${idx}|${r.action}|${r.target_cn ?? ''}`)}
 								<tr>
 									<td class="mono">{r.ts}</td>
 									<td>{r.action}</td>
@@ -326,6 +374,7 @@
 						</tbody>
 					</table>
 				</div>
+				<TablePager bind:page={auditPage} total={paged.total} pageSize={AUDIT_PAGE_SIZE} />
 			</section>
 		{/if}
 	{/if}
