@@ -4,6 +4,8 @@
 	import { apiFetch } from '$lib/api-client';
 	import AuthGate from '$lib/AuthGate.svelte';
 	import { describeApiFailure, describeFetchResponse, noticeTtl } from '$lib/api-errors';
+	import { paginate } from '$lib/table-pager';
+	import TablePager from '$lib/TablePager.svelte';
 
 	type UserRow = { status: string; name: string; expiration?: string };
 
@@ -42,6 +44,8 @@
 	let userQ = $state('');
 	let userStatus = $state(''); // valid|revoked|''
 	let expSoonDays = $state(0); // 0 = off
+	let usersPage = $state(1);
+	const USERS_PAGE_SIZE = 50;
 
 	function parseExpiry(exp?: string) {
 		if (!exp) return null;
@@ -73,6 +77,15 @@
 			const db = parseExpiry(b.expiration)?.getTime() ?? Number.POSITIVE_INFINITY;
 			return da - db;
 		});
+	});
+
+	const usersPaged = $derived(paginate(filteredUsers, usersPage, USERS_PAGE_SIZE));
+
+	$effect(() => {
+		void userQ;
+		void userStatus;
+		void expSoonDays;
+		usersPage = 1;
 	});
 
 	const expAlerts = $derived.by(() => {
@@ -566,7 +579,7 @@
 						</tr>
 					</thead>
 					<tbody>
-						{#each filteredUsers as u, i (`${u.status}:${u.name}:${u.expiration ?? ''}:${i}`)}
+						{#each usersPaged.page as u, i (`${u.status}:${u.name}:${u.expiration ?? ''}:${i}`)}
 							<tr>
 								<td>{u.status}</td>
 								<td class="mono">{displayName(u.name)}</td>
@@ -662,6 +675,7 @@
 					</tbody>
 				</table>
 			</div>
+			<TablePager bind:page={usersPage} total={usersPaged.total} pageSize={USERS_PAGE_SIZE} />
 			{/if}
 		{/if}
 	</section>

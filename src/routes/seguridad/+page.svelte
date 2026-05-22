@@ -5,6 +5,8 @@
 	import Skeleton from '$lib/Skeleton.svelte';
 	import { describeFetchResponse } from '$lib/api-errors';
 	import { readRefreshMs, refreshLabel, refreshPresets, writeRefreshMs } from '$lib/refresh-prefs';
+	import { paginate } from '$lib/table-pager';
+	import TablePager from '$lib/TablePager.svelte';
 	import './page.css';
 
 	type DnsInsights = {
@@ -72,10 +74,12 @@
 	let data = $state<Payload | null>(null);
 	let windowHours = $state(24);
 	let onlyCritical = $state(false);
-	let showAllAnoms = $state(false);
+	let anomPage = $state(1);
+	let threatPage = $state(1);
 	let refreshMs = $state(readRefreshMs(0));
 	let interval: ReturnType<typeof setInterval> | null = null;
-	const ANOM_PREVIEW = 8;
+	const ANOM_PAGE_SIZE = 8;
+	const THREAT_PAGE_SIZE = 10;
 
 	const visibleAlerts = $derived(
 		(data?.alerts ?? []).filter((a) => !onlyCritical || a.severity === 'critical')
@@ -90,10 +94,15 @@
 	const sortedAnomalies = $derived(
 		[...visibleAnomalies].sort((a, b) => b.current - a.current)
 	);
-	const shownAnomalies = $derived(
-		showAllAnoms ? sortedAnomalies : sortedAnomalies.slice(0, ANOM_PREVIEW)
-	);
-	const hiddenAnomCount = $derived(Math.max(0, sortedAnomalies.length - ANOM_PREVIEW));
+	const anomsPaged = $derived(paginate(sortedAnomalies, anomPage, ANOM_PAGE_SIZE));
+	const threatsPaged = $derived(paginate(visibleThreats, threatPage, THREAT_PAGE_SIZE));
+
+	$effect(() => {
+		void onlyCritical;
+		void windowHours;
+		anomPage = 1;
+		threatPage = 1;
+	});
 
 	function alertDetailParts(detail: string): string[] {
 		const chunks = detail.split(/\s*·\s*|\n+/).map((s) => s.trim()).filter(Boolean);
@@ -263,7 +272,7 @@
 					Dispositivos con actividad muy superior a su media de los últimos 7 días.
 				</p>
 				<ul class="secAnoms__list">
-					{#each shownAnomalies as a (a.client)}
+					{#each anomsPaged.page as a (a.client)}
 						{@const displayName = a.label ?? a.client}
 						{@const showClientLine =
 							Boolean(a.label?.trim()) && a.label!.trim() !== a.client.trim()}
@@ -295,15 +304,7 @@
 						</li>
 					{/each}
 				</ul>
-				{#if hiddenAnomCount > 0 && !showAllAnoms}
-					<button type="button" class="btn btnSecondary secAnoms__more" onclick={() => (showAllAnoms = true)}>
-						Mostrar {hiddenAnomCount} más
-					</button>
-				{:else if showAllAnoms && sortedAnomalies.length > ANOM_PREVIEW}
-					<button type="button" class="btn btnSecondary secAnoms__more" onclick={() => (showAllAnoms = false)}>
-						Mostrar menos
-					</button>
-				{/if}
+				<TablePager bind:page={anomPage} total={anomsPaged.total} pageSize={ANOM_PAGE_SIZE} />
 			</section>
 		{/if}
 
@@ -314,7 +315,7 @@
 					Heurísticas: subdominios largos/alta entropía y consultas TXT inusuales. Revisa antes de actuar.
 				</p>
 				<ul class="secAnoms__list">
-					{#each visibleThreats as t (`${t.kind}-${t.client}-${t.domain}`)}
+					{#each threatsPaged.page as t (`${t.kind}-${t.client}-${t.domain}`)}
 						{@const displayName = t.label ?? t.client}
 						{@const showClientLine =
 							Boolean(t.label?.trim()) && t.label!.trim() !== t.client.trim()}
@@ -338,6 +339,7 @@
 						</li>
 					{/each}
 				</ul>
+				<TablePager bind:page={threatPage} total={threatsPaged.total} pageSize={THREAT_PAGE_SIZE} />
 			</section>
 		{/if}
 		<section class="panelGrid2">

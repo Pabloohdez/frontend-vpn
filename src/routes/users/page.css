@@ -1,3 +1,7 @@
+.page-users .tablePager {
+	margin-top: 16px;
+}
+
 .page-users .errorCard {
 	border-color: var(--card-error-border);
 	background: var(--card-error-bg);

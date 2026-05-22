@@ -1,6 +1,7 @@
 import type { RequestHandler } from './$types';
 import { isAuditorOrAdminFromRequestCookie } from '$lib/server/auth';
 import { listAudit } from '$lib/server/audit';
+import { buildSpreadsheetXml } from '$lib/spreadsheet-export';
 
 export const prerender = false;
 
@@ -9,7 +10,7 @@ function csvEscape(v: string) {
 	return v;
 }
 
-/** Export CSV de auditoría (PDF §4.2). */
+/** Export CSV o Excel de auditoría (PDF §4.2). `?format=xls` para Excel. */
 export const GET: RequestHandler = async ({ request, url }) => {
 	if (!isAuditorOrAdminFromRequestCookie(request.headers.get('cookie'))) {
 		return new Response('unauthorized', { status: 401 });
@@ -31,6 +32,30 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	});
 
 	const header = ['ts', 'actor', 'action', 'target_cn', 'success', 'remote_ip', 'details'];
+	const stamp = new Date().toISOString().slice(0, 10);
+	const format = (url.searchParams.get('format') ?? 'csv').trim().toLowerCase();
+
+	if (format === 'xls' || format === 'excel') {
+		const dataRows = rows.map((r) => [
+			r.ts,
+			r.actor,
+			r.action,
+			r.target_cn ?? '',
+			r.success ? 'true' : 'false',
+			r.remote_ip ?? '',
+			r.details ? JSON.stringify(r.details) : ''
+		]);
+		const xml = buildSpreadsheetXml('Auditoría', header, dataRows);
+		return new Response(xml, {
+			status: 200,
+			headers: {
+				'content-type': 'application/vnd.ms-excel; charset=utf-8',
+				'content-disposition': `attachment; filename="audit-${stamp}.xls"`,
+				'cache-control': 'no-store'
+			}
+		});
+	}
+
 	const lines = [
 		header.join(','),
 		...rows.map((r) =>
@@ -46,8 +71,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 		)
 	];
 
-	const stamp = new Date().toISOString().slice(0, 10);
-	return new Response(lines.join('\n') + '\n', {
+	return new Response('\uFEFF' + lines.join('\n') + '\n', {
 		status: 200,
 		headers: {
 			'content-type': 'text/csv; charset=utf-8',

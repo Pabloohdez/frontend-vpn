@@ -150,6 +150,10 @@
 }
 
 /* —— Anomalías / amenazas (grid de tarjetas) —— */
+.page-seguridad .tablePager {
+	margin-top: 16px;
+}
+
 .page-seguridad .secAnoms__hint {
 	margin: -2px 0 14px;
 	font-size: 13px;

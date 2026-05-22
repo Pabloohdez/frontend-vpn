@@ -123,7 +123,7 @@
 		load();
 	});
 
-	function serverExportUrl() {
+	function serverExportQuery() {
 		const q = new URLSearchParams();
 		q.set('limit', String(Math.min(5000, limit || 2000)));
 		if (fromDay) q.set('from', fromDay);
@@ -132,11 +132,17 @@
 		if (cn) q.set('cn', cn);
 		if (ok === '1') q.set('success', 'true');
 		if (ok === '0') q.set('success', 'false');
+		return q;
+	}
+
+	function serverExportUrl(format: 'csv' | 'xls' = 'csv') {
+		const q = serverExportQuery();
+		if (format === 'xls') q.set('format', 'xls');
 		return `/api/admin/audit/export?${q.toString()}`;
 	}
 
 	function download(kind: 'json' | 'csv' | 'xls') {
-		const data = rows;
+		const data = filteredRows;
 		if (kind === 'json') {
 			const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
 			const a = document.createElement('a');
@@ -225,29 +231,37 @@
 		<div class="panelHero__actions">
 			<a
 				class="btn secondary"
-				href={serverExportUrl()}
+				href={serverExportUrl('csv')}
 				download
 				aria-label="Descargar auditoría en CSV (servidor, hasta 5000 filas)"
 			>
 				CSV servidor
 			</a>
+			<a
+				class="btn secondary"
+				href={serverExportUrl('xls')}
+				download
+				aria-label="Descargar auditoría en Excel (servidor, hasta 5000 filas)"
+			>
+				Excel servidor
+			</a>
 			<button
 				type="button"
 				class="btn secondary"
 				onclick={() => download('csv')}
-				disabled={loading || rows.length === 0}
-				aria-label="Descargar vista actual en CSV"
+				disabled={loading || filteredRows.length === 0}
+				aria-label="Descargar tabla filtrada en CSV"
 			>
-				CSV vista
+				CSV tabla
 			</button>
 			<button
 				type="button"
 				class="btn secondary"
 				onclick={() => download('xls')}
-				disabled={loading || rows.length === 0}
-				aria-label="Descargar vista actual en Excel"
+				disabled={loading || filteredRows.length === 0}
+				aria-label="Descargar tabla filtrada en Excel"
 			>
-				Excel vista
+				Excel tabla
 			</button>
 			<button
 				type="button"
