@@ -88,7 +88,7 @@ export async function lockoutCheck(
 
 		const countKey = `fail:${key}`;
 		const count = await redis.incr(countKey);
-		if (count === 1) await redis.pexpire(countKey, windowMs);
+		if (count === 1) await redis.pExpire(countKey, windowMs);
 		if (count >= maxAttempts) {
 			await redis.set(lockKey, '1', { EX: lockoutSec });
 			return { ok: false, retryAfterSec: lockoutSec };

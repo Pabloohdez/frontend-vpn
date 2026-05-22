@@ -3,14 +3,16 @@
 	import { apiFetch } from '$lib/api-client';
 	import { apiErrorMessage, describeFetchResponse } from '$lib/api-errors';
 
-	let enabled = $state(false);
-	let state = $state<{
+	type ThreatIntelSyncState = {
 		lastSyncAt: string | null;
 		lastDomainCount: number;
 		lastAdded: number;
 		lastError: string | null;
 		source: string | null;
-	} | null>(null);
+	};
+
+	let enabled = $state(false);
+	let syncState = $state<ThreatIntelSyncState | null>(null);
 	let busy = $state(false);
 	let err = $state<string | null>(null);
 	let okMsg = $state<string | null>(null);
@@ -25,7 +27,7 @@
 		}
 		const j = await res.json();
 		enabled = Boolean(j.enabled);
-		state = j.state ?? null;
+		syncState = j.state ?? null;
 	}
 
 	async function syncNow() {
@@ -66,18 +68,18 @@
 		Estado automático:
 		<strong>{enabled ? 'Activo' : 'Desactivado'}</strong>
 	</p>
-	{#if state}
+	{#if syncState}
 		<ul class="muted" style="margin:8px 0;padding-left:1.2rem">
 			<li>
 				Última sync:
-				{state.lastSyncAt ? new Date(state.lastSyncAt).toLocaleString('es-ES') : 'nunca'}
+				{syncState.lastSyncAt ? new Date(syncState.lastSyncAt).toLocaleString('es-ES') : 'nunca'}
 			</li>
-			<li>Dominios en categoría malware: {state.lastDomainCount.toLocaleString('es-ES')}</li>
-			{#if state.lastAdded > 0}
-				<li>Última importación: +{state.lastAdded.toLocaleString('es-ES')}</li>
+			<li>Dominios en categoría malware: {syncState.lastDomainCount.toLocaleString('es-ES')}</li>
+			{#if syncState.lastAdded > 0}
+				<li>Última importación: +{syncState.lastAdded.toLocaleString('es-ES')}</li>
 			{/if}
-			{#if state.lastError}
-				<li class="settingsErr">Error: {state.lastError}</li>
+			{#if syncState.lastError}
+				<li class="settingsErr">Error: {syncState.lastError}</li>
 			{/if}
 		</ul>
 	{/if}

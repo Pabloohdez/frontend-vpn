@@ -1,7 +1,9 @@
 import { env } from '$env/dynamic/private';
-import { createClient, type RedisClientType } from 'redis';
+import { createClient } from 'redis';
 
-let client: RedisClientType | null = null;
+type AppRedisClient = ReturnType<typeof createClient>;
+
+let client: AppRedisClient | null = null;
 let connecting: Promise<void> | null = null;
 
 export function isRedisConfigured(): boolean {
@@ -9,7 +11,7 @@ export function isRedisConfigured(): boolean {
 	return Boolean(url);
 }
 
-export async function getRedis(): Promise<RedisClientType | null> {
+export async function getRedis(): Promise<AppRedisClient | null> {
 	const url = (env.REDIS_URL ?? '').trim();
 	if (!url) return null;
 	if (client) return client;

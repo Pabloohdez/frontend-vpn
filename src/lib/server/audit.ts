@@ -25,7 +25,9 @@ export type AuditAction =
 	| 'category_domains_update'
 	| 'category_policy_upsert'
 	| 'category_policy_delete'
-	| 'threat_intel_sync';
+	| 'threat_intel_sync'
+	| 'watchdog_vm1_down'
+	| 'watchdog_pihole_down';
 
 export type AuditEntry = {
 	ts: string;
