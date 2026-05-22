@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test';
 
+function cookieHeader(cookies: { name: string; value: string }[]): string {
+	return cookies.map((c) => `${c.name}=${c.value}`).join('; ');
+}
+
 /**
  * Smoke E2E mínimo: verifica que la app arranca, que la página de login está
  * accesible (puede ser `/login` o redirigir desde `/`), y que cargar una
@@ -37,20 +41,23 @@ test.describe('smoke', () => {
 		// Si no hay password en el entorno, no tiene sentido fallar el pipeline.
 		test.skip(!pw, 'E2E_ADMIN_PASSWORD/ADMIN_PASSWORD no configurada');
 
-		await page.goto('/openvpn');
-		await page.locator('#ovpn-login-pw').fill(pw);
-		await page.getByRole('button', { name: 'Entrar' }).click();
-		// tras login hay reload
+		await page.goto('/login');
+		await page.locator('input[autocomplete="username"]').fill('admin');
+		await page.locator('input[type="password"]').first().fill(pw);
+		await page.getByRole('button', { name: /entrar|iniciar/i }).click();
 		await page.waitForLoadState('networkidle');
 
-		const me = await request.get('/api/auth/me', { headers: { 'cache-control': 'no-cache' } });
+		const cookies = await page.context().cookies();
+		const hdr = { cookie: cookieHeader(cookies) };
+
+		const me = await request.get('/api/auth/me', { headers: { ...hdr, 'cache-control': 'no-cache' } });
 		expect(me.ok()).toBeTruthy();
 		const meJson = (await me.json()) as { role?: string | null; isAdmin?: boolean };
 		expect(meJson.role).toBe('admin');
 		expect(meJson.isAdmin).toBe(true);
 
 		// Endpoint protegido (admin/auditor) debe dejar pasar tras login.
-		const sec = await request.get('/api/admin/security-insights?window_hours=1');
+		const sec = await request.get('/api/admin/security-insights?window_hours=1', { headers: hdr });
 		expect([200, 502, 500]).toContain(sec.status()); // 502/500 aceptable si Pi-hole no está en CI
 	});
 });

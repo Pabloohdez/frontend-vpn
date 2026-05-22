@@ -6,6 +6,14 @@ function parseCsrfToken(setCookie: string | undefined): string | null {
 	return m ? decodeURIComponent(m[1]) : null;
 }
 
+function cookieHeader(cookies: { name: string; value: string }[]): string {
+	return cookies.map((c) => `${c.name}=${c.value}`).join('; ');
+}
+
+function csrfFromCookies(cookies: { name: string; value: string }[]): string {
+	return cookies.find((c) => c.name === 'csrf_token')?.value ?? '';
+}
+
 test.describe('CSRF', () => {
 	test('POST sin token devuelve csrf_invalid', async ({ request }) => {
 		const res = await request.post('/api/admin/categories', {
@@ -43,20 +51,19 @@ test.describe('roles', () => {
 
 		await page.goto('/login');
 		await page.locator('input[autocomplete="username"]').fill('operator');
-		await page.locator('#ovpn-login-pw, input[type="password"]').first().fill(opPw);
+		await page.locator('input[type="password"]').first().fill(opPw);
 		await page.getByRole('button', { name: /entrar|iniciar/i }).click();
 		await page.waitForLoadState('networkidle');
 
-		const home = await request.get('/');
-		const token = parseCsrfToken(home.headers()['set-cookie']);
 		const cookies = await page.context().cookies();
-		const cookieHeader = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
+		const token = csrfFromCookies(cookies);
+		expect(token).toBeTruthy();
 
 		const res = await request.post('/api/admin/users', {
 			headers: {
 				'content-type': 'application/json',
-				'x-csrf-token': token ?? '',
-				cookie: cookieHeader
+				'x-csrf-token': token,
+				cookie: cookieHeader(cookies)
 			},
 			data: { cn: 'e2e-test-user', days_valid: 1 }
 		});
@@ -73,7 +80,10 @@ test.describe('roles', () => {
 		await page.getByRole('button', { name: /entrar|iniciar/i }).click();
 		await page.waitForLoadState('networkidle');
 
-		const me = await request.get('/api/auth/me');
+		const cookies = await page.context().cookies();
+		const me = await request.get('/api/auth/me', {
+			headers: { cookie: cookieHeader(cookies) }
+		});
 		expect(me.ok()).toBeTruthy();
 		const j = (await me.json()) as { permissions?: string[]; role?: string };
 		expect(j.role).toBe('admin');

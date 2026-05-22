@@ -1,4 +1,9 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig, devices } from '@playwright/test';
+
+const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+const e2eDataDir = path.join(projectRoot, 'data', 'e2e-ci');
 
 const PORT = Number(process.env.E2E_PORT ?? 4173);
 const HOST = process.env.E2E_HOST ?? '127.0.0.1';
@@ -25,7 +30,7 @@ export default defineConfig({
 	webServer: process.env.E2E_SKIP_WEB_SERVER
 		? undefined
 		: {
-				command: `npm run build && npm run preview -- --host ${HOST} --port ${PORT}`,
+				command: `mkdir -p "${e2eDataDir}" && npm run build && npm run preview -- --host ${HOST} --port ${PORT}`,
 				url: BASE_URL,
 				reuseExistingServer: !process.env.CI,
 				timeout: 120_000,
@@ -40,7 +45,9 @@ export default defineConfig({
 					// E2E/CI: sin Pi-hole ni VM1; evita ticks que llamen APIs externas.
 					PIHOLE_BASE_URL: process.env.PIHOLE_BASE_URL ?? '',
 					VPN_API_BASE_URL: process.env.VPN_API_BASE_URL ?? '',
-					VPN_API_KEY: process.env.VPN_API_KEY ?? ''
+					VPN_API_KEY: process.env.VPN_API_KEY ?? '',
+					AUDIT_DB_PATH: process.env.AUDIT_DB_PATH ?? path.join(e2eDataDir, 'audit.jsonl'),
+					ADMIN_2FA_REQUIRED: process.env.ADMIN_2FA_REQUIRED ?? 'false'
 				}
 			}
 });

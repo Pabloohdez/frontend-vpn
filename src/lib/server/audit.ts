@@ -48,8 +48,18 @@ export type AuditFilters = {
 	success?: boolean;
 };
 
+function envTrim(name: keyof typeof env): string {
+	const v = env[name] ?? process.env[String(name)];
+	return typeof v === 'string' ? v.trim() : '';
+}
+
+/** Ruta del JSONL de auditoría (escribible en dev/CI; en Docker usar AUDIT_DB_PATH=/app/data/...). */
+export function resolveAuditDbPath(): string {
+	return envTrim('AUDIT_DB_PATH') || path.join(process.cwd(), 'data', 'audit.jsonl');
+}
+
 function logPath() {
-	return env.AUDIT_DB_PATH || '/app/data/audit.jsonl';
+	return resolveAuditDbPath();
 }
 
 function retentionDays() {

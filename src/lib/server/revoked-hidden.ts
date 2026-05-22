@@ -1,9 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { env } from '$env/dynamic/private';
+import { resolveAuditDbPath } from '$lib/server/audit';
 
 function hiddenPath() {
-	const audit = env.AUDIT_DB_PATH || '/app/data/audit.jsonl';
+	const audit = resolveAuditDbPath();
 	return path.join(path.dirname(audit), 'revoked-hidden.json');
 }
 

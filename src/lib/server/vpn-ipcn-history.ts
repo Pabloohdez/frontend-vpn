@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { env } from '$env/dynamic/private';
+import { resolveAuditDbPath } from '$lib/server/audit';
 
 function ttlDays() {
 	const raw = Number(env.VPN_IPCN_TTL_DAYS ?? 30);
@@ -9,7 +10,7 @@ function ttlDays() {
 
 function historyPath() {
 	// Guardamos junto al audit para no introducir otra variable de path.
-	const audit = env.AUDIT_DB_PATH || '/app/data/audit.jsonl';
+	const audit = resolveAuditDbPath();
 	return path.join(path.dirname(audit), 'vpn-ipcn-history.json');
 }
 

@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHmac } from 'node:crypto';
 import { env } from '$env/dynamic/private';
+import { resolveAuditDbPath } from '$lib/server/audit';
 
 type SignedAuditEntry = {
 	ts: string;
@@ -18,7 +19,7 @@ type SignedAuditEntry = {
 function logPath() {
 	const base = env.AUDIT_SIGNED_PATH?.trim();
 	if (base) return base;
-	const audit = env.AUDIT_DB_PATH || '/app/data/audit.jsonl';
+	const audit = resolveAuditDbPath();
 	return path.join(path.dirname(audit), 'audit-critical.signed.jsonl');
 }
 

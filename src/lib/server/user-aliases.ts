@@ -1,10 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { env } from '$env/dynamic/private';
+import { resolveAuditDbPath } from '$lib/server/audit';
 
 function aliasPath() {
 	// Reutilizamos el directorio del audit si existe, para no introducir otra variable.
-	const audit = env.AUDIT_DB_PATH || '/app/data/audit.jsonl';
+	const audit = resolveAuditDbPath();
 	return path.join(path.dirname(audit), 'user-aliases.json');
 }
 
