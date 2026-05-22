@@ -5,6 +5,7 @@
 	import Skeleton from '$lib/Skeleton.svelte';
 	import TablePager from '$lib/TablePager.svelte';
 	import { describeFetchResponse } from '$lib/api-errors';
+	import { downloadSpreadsheet } from '$lib/spreadsheet-export';
 	import { filterRowsByQuery, paginate } from '$lib/table-pager';
 	import './page.css';
 
@@ -134,7 +135,7 @@
 		return `/api/admin/audit/export?${q.toString()}`;
 	}
 
-	function download(kind: 'json' | 'csv') {
+	function download(kind: 'json' | 'csv' | 'xls') {
 		const data = rows;
 		if (kind === 'json') {
 			const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -150,25 +151,36 @@
 		}
 
 		const header = ['ts', 'actor', 'action', 'target_cn', 'success', 'remote_ip', 'details'];
-		const esc = (v: any) => {
+		const rowCells = (r: Row) =>
+			[
+				r.ts,
+				r.actor,
+				r.action,
+				r.target_cn ?? '',
+				String(r.success),
+				r.remote_ip ?? '',
+				typeof r.details === 'string' ? r.details : JSON.stringify(r.details ?? null)
+			] as string[];
+
+		if (kind === 'xls') {
+			downloadSpreadsheet(
+				`audit-${new Date().toISOString().slice(0, 10)}.xls`,
+				'Auditoría',
+				header,
+				data.map(rowCells)
+			);
+			return;
+		}
+
+		const esc = (v: unknown) => {
 			const s = typeof v === 'string' ? v : JSON.stringify(v ?? null);
 			return `"${s.replaceAll('"', '""')}"`;
 		};
 		const lines = [
 			header.join(','),
-			...data.map((r) =>
-				[
-					esc(r.ts),
-					esc(r.actor),
-					esc(r.action),
-					esc(r.target_cn),
-					esc(r.success),
-					esc(r.remote_ip),
-					esc(r.details)
-				].join(',')
-			)
+			...data.map((r) => rowCells(r).map(esc).join(','))
 		].join('\n');
-		const blob = new Blob([lines], { type: 'text/csv' });
+		const blob = new Blob(['\uFEFF' + lines], { type: 'text/csv;charset=utf-8' });
 		const a = document.createElement('a');
 		const url = URL.createObjectURL(blob);
 		a.href = url;
@@ -227,6 +239,15 @@
 				aria-label="Descargar vista actual en CSV"
 			>
 				CSV vista
+			</button>
+			<button
+				type="button"
+				class="btn secondary"
+				onclick={() => download('xls')}
+				disabled={loading || rows.length === 0}
+				aria-label="Descargar vista actual en Excel"
+			>
+				Excel vista
 			</button>
 			<button
 				type="button"

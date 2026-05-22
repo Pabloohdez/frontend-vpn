@@ -26,6 +26,9 @@
 	import Skeleton from '$lib/Skeleton.svelte';
 	import { describeApiFailure } from '$lib/api-errors';
 	import { apiFetch } from '$lib/api-client';
+	import { downloadSpreadsheet } from '$lib/spreadsheet-export';
+	import { paginate } from '$lib/table-pager';
+	import TablePager from '$lib/TablePager.svelte';
 
 	type DnsFilterState = {
 		q: string;
@@ -398,21 +401,9 @@
 			.toSorted((a, b) => a.label.localeCompare(b.label, 'es'));
 	});
 
-	/** Paginación visual: para listas muy grandes, evita lag al pintar miles de filas. */
-	const PAGE_SIZE = 300;
-	let visibleLimit = $state(PAGE_SIZE);
-
-	$effect(() => {
-		// Reset cuando cambian filtros relevantes.
-		void qDebounced;
-		void cnDebounced;
-		void deviceIpDebounced;
-		void deviceNameDebounced;
-		void group;
-		void showLan;
-		void onlyWithDeviceIp;
-		visibleLimit = PAGE_SIZE;
-	});
+	/** Paginación numérica (PDF §3.3): evita lag al pintar miles de filas. */
+	const DNS_PAGE_SIZE = 75;
+	let dnsPage = $state(1);
 
 	const filtered = $derived.by(() => {
 		const needle = qDebounced.trim().toLowerCase();
@@ -530,45 +521,48 @@
 		return s;
 	}
 
+	const DNS_EXPORT_HEADERS = [
+		'timestamp_iso',
+		'tipo',
+		'dominio',
+		'cliente_pihole',
+		'cn',
+		'ip_dispositivo',
+		'dispositivo',
+		'ip_vpn_lan',
+		'tipo_dispositivo',
+		'sede',
+		'estado_ftl'
+	];
+
+	function dnsExportRow(row: DnsQueryRow): string[] {
+		const ts = Number(row[0] ?? 0);
+		const iso = Number.isFinite(ts) && ts > 0 ? new Date(ts * 1000).toISOString() : '';
+		const client = String(row[3] ?? '');
+		const cn = displayCn(cnForClient(client)) ?? '';
+		const ipDev = deviceIp(client);
+		const localIp = deviceLocalIp(client);
+		const nm = deviceNetmonitor(client);
+		return [
+			iso,
+			String(row[1] ?? ''),
+			String(row[2] ?? ''),
+			client,
+			cn,
+			ipDev,
+			nm?.label ?? '',
+			localIp,
+			nm?.type ?? '',
+			nm?.sedeName ?? '',
+			String(row[4] ?? '')
+		];
+	}
+
 	function exportFilteredDnsCsv() {
 		if (!browser) return;
-		const rows = filtered;
-		const header = [
-			'timestamp_iso',
-			'tipo',
-			'dominio',
-			'cliente_pihole',
-			'cn',
-			'ip_dispositivo',
-			'dispositivo',
-			'ip_vpn_lan',
-			'tipo_dispositivo',
-			'sede',
-			'estado_ftl'
-		];
-		const lines = [header.map(csvEscapeCell).join(',')];
-		for (const row of rows) {
-			const ts = Number(row[0] ?? 0);
-			const iso = Number.isFinite(ts) && ts > 0 ? new Date(ts * 1000).toISOString() : '';
-			const client = String(row[3] ?? '');
-			const cn = displayCn(cnForClient(client)) ?? '';
-			const ipDev = deviceIp(client);
-			const localIp = deviceLocalIp(client);
-			const nm = deviceNetmonitor(client);
-			const cols = [
-				iso,
-				String(row[1] ?? ''),
-				String(row[2] ?? ''),
-				client,
-				cn,
-				ipDev,
-				nm?.label ?? '',
-				localIp,
-				nm?.type ?? '',
-				nm?.sedeName ?? '',
-				String(row[4] ?? '')
-			];
-			lines.push(cols.map(csvEscapeCell).join(','));
+		const lines = [DNS_EXPORT_HEADERS.map(csvEscapeCell).join(',')];
+		for (const row of filtered) {
+			lines.push(dnsExportRow(row).map(csvEscapeCell).join(','));
 		}
 		const body = '\uFEFF' + lines.join('\n');
 		const blob = new Blob([body], { type: 'text/csv;charset=utf-8' });
@@ -579,6 +573,17 @@
 		a.download = `dns-consultas-${stamp}.csv`;
 		a.click();
 		queueMicrotask(() => URL.revokeObjectURL(url));
+	}
+
+	function exportFilteredDnsExcel() {
+		if (!browser) return;
+		const stamp = new Date().toISOString().slice(0, 19).replace(/:/g, '');
+		downloadSpreadsheet(
+			`dns-consultas-${stamp}.xls`,
+			'Consultas DNS',
+			DNS_EXPORT_HEADERS,
+			filtered.map((row) => dnsExportRow(row))
+		);
 	}
 
 	type GroupRow = {
@@ -625,6 +630,24 @@
 		}
 		return list.sort((a, b) => b.ts - a.ts);
 	});
+
+	const dnsTableRows = $derived(group ? grouped : filtered);
+	const dnsPaged = $derived(paginate(dnsTableRows, dnsPage, DNS_PAGE_SIZE));
+
+	$effect(() => {
+		void qDebounced;
+		void cnDebounced;
+		void deviceIpDebounced;
+		void deviceNameDebounced;
+		void group;
+		void showLan;
+		void onlyWithDeviceIp;
+		dnsPage = 1;
+	});
+
+	function scrollDnsTableTop() {
+		document.querySelector('.page-dns .dnsTableScroll')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+	}
 
 	function toggleExpand(key: string) {
 		expanded = { ...expanded, [key]: !expanded[key] };
@@ -826,7 +849,16 @@
 				onclick={exportFilteredDnsCsv}
 				aria-label="Exportar consultas DNS filtradas a CSV"
 			>
-				Exportar CSV
+				CSV
+			</button>
+			<button
+				type="button"
+				class="btn secondary"
+				disabled={loading || filtered.length === 0}
+				onclick={exportFilteredDnsExcel}
+				aria-label="Exportar consultas DNS filtradas a Excel"
+			>
+				Excel
 			</button>
 			<button
 				type="button"
@@ -923,7 +955,7 @@
 		<details class="dnsHelp">
 			<summary>Ayuda: correlación IP, CN y CSV</summary>
 			<div class="dnsHelp__body">
-				<p><strong>Exportar CSV</strong> (arriba): solo filas visibles, UTF-8 con BOM para Excel.</p>
+				<p><strong>CSV / Excel</strong> (arriba): todas las filas que pasan los filtros actuales (no solo la página visible).</p>
 				<p>
 					<strong>Informe PDF</strong>: consultas agrupadas por dispositivo y día; opcionalmente filtra por IP, nombre o CN
 					antes de generar.
@@ -1070,7 +1102,7 @@
 					</thead>
 					<tbody>
 						{#if group}
-							{#each grouped.slice(0, visibleLimit) as g (`${g.key}:${g.ts}`)}
+							{#each dnsPaged.page as g (`${g.key}:${g.ts}`)}
 								{@const devG = deviceDisplay(g.client)}
 								<tr
 									class="groupRow"
@@ -1159,7 +1191,7 @@
 								{/if}
 							{/each}
 						{:else}
-							{#each filtered.slice(0, visibleLimit) as row, i (`${row[0]}:${row[1]}:${row[2]}:${i}`)}
+							{#each dnsPaged.page as row, i (`${row[0]}:${row[1]}:${row[2]}:${i}`)}
 								{@const clientRaw = String(row[3] ?? '')}
 								{@const devRow = deviceDisplay(clientRaw)}
 								<tr>
@@ -1196,29 +1228,12 @@
 					</tbody>
 				</table>
 			</div>
-			{@const totalVisible = group ? grouped.length : filtered.length}
-			{#if totalVisible > visibleLimit}
-				<div class="dnsLoadMore">
-					<span class="dnsLoadMore__info">
-						Mostrando <strong>{visibleLimit.toLocaleString('es-ES')}</strong>
-						de <strong>{totalVisible.toLocaleString('es-ES')}</strong>
-					</span>
-					<button
-						type="button"
-						class="btn"
-						onclick={() => (visibleLimit = Math.min(totalVisible, visibleLimit + PAGE_SIZE))}
-					>
-						Cargar +{Math.min(PAGE_SIZE, totalVisible - visibleLimit).toLocaleString('es-ES')}
-					</button>
-					<button
-						type="button"
-						class="btn secondary"
-						onclick={() => (visibleLimit = totalVisible)}
-					>
-						Mostrar todo
-					</button>
-				</div>
-			{/if}
+			<TablePager
+				bind:page={dnsPage}
+				total={dnsPaged.total}
+				pageSize={DNS_PAGE_SIZE}
+				onPageChange={() => scrollDnsTableTop()}
+			/>
 			{/if}
 		</section>
 	{/if}

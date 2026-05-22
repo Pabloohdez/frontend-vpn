@@ -12,10 +12,10 @@ Estado del PDF (mayo 2026). Casi todo el documento está cubierto en código.
 | 2.1 | Caché VM1/Pi-hole | Media | ✅ |
 | 3.1 | Auto-refresco configurable | Media | ✅ OpenVPN, Pi-hole, Seguridad, **DNS** |
 | 3.2 | Skeletons / errores claros | Baja | ✅ |
-| 3.3 | Paginación/búsqueda tablas | Media | ✅ Auditoría; DNS con filtros + «cargar más» + CSV |
+| 3.3 | Paginación/búsqueda tablas | Media | ✅ Auditoría; DNS con paginación numérica + filtros + CSV/Excel |
 | 3.4 | Modo oscuro / responsive | Baja | ✅ |
 | 4.1 | APIs cron / activity | Media | ✅ `activity`, cron DNS histórico, watchdog, backup |
-| 4.2 | Export CSV | Baja | ✅ Auditoría + consultas DNS filtradas |
+| 4.2 | Export CSV / Excel | Baja | ✅ Auditoría (CSV servidor/vista, Excel vista) + DNS (CSV/Excel filtrados) |
 | 4.3 | Alertas email (incl. DNS) | Media | ✅ SMTP; cron incluye anomalías DNS y tunelización |
 | 4.4 | Dashboard unificado | Baja | ✅ Overview en inicio + tarjeta Dashboard |
 | 4.5 | Histórico DNS + patrones | — | ✅ (extra) `dns-hourly-history`, predicción |
@@ -78,6 +78,5 @@ sudo docker compose -f docker-compose.prod.yml up -d --build
 
 ## Pendiente opcional (fuera del PDF o muy bajo impacto)
 
-- Quitar Redis del código por completo (§1.5 recomienda simplificar; hoy está documentado como opcional).
-- Paginación numérica en tabla DNS (hoy «cargar más» + filtros).
-- Export Excel además de CSV.
+- Quitar Redis del código por completo (§1.5 recomienda simplificar; hoy está documentado como opcional en [`REDIS.md`](./REDIS.md)).
+- Export `.xlsx` nativo (hoy `.xls` SpreadsheetML, compatible con Excel/LibreOffice sin dependencias extra).
