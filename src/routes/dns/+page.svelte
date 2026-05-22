@@ -41,6 +41,16 @@
 		group: boolean;
 	};
 
+	type DnsGroupRow = {
+		key: string;
+		ts: number;
+		cn: string | null;
+		client: string;
+		main: string;
+		count: number;
+		items: { ts: number; domain: string; qtype: string; client: string }[];
+	};
+
 	function currentFilterState(): DnsFilterState {
 		return {
 			q,
@@ -586,18 +596,8 @@
 		);
 	}
 
-	type GroupRow = {
-		key: string;
-		ts: number;
-		cn: string | null;
-		client: string;
-		main: string;
-		count: number;
-		items: { ts: number; domain: string; qtype: string; client: string }[];
-	};
-
 	const grouped = $derived.by(() => {
-		const map = new Map<string, GroupRow>();
+		const map = new Map<string, DnsGroupRow>();
 		for (const row of filtered) {
 			const ts = Number(row[0] ?? 0);
 			const qtype = String(row[1] ?? '');
@@ -631,8 +631,9 @@
 		return list.sort((a, b) => b.ts - a.ts);
 	});
 
-	const dnsTableRows = $derived(group ? grouped : filtered);
-	const dnsPaged = $derived(paginate(dnsTableRows, dnsPage, DNS_PAGE_SIZE));
+	const groupedPaged = $derived(paginate<DnsGroupRow>(grouped, dnsPage, DNS_PAGE_SIZE));
+	const filteredPaged = $derived(paginate<DnsQueryRow>(filtered, dnsPage, DNS_PAGE_SIZE));
+	const dnsPagerTotal = $derived(group ? groupedPaged.total : filteredPaged.total);
 
 	$effect(() => {
 		void qDebounced;
@@ -1102,7 +1103,7 @@
 					</thead>
 					<tbody>
 						{#if group}
-							{#each dnsPaged.page as g (`${g.key}:${g.ts}`)}
+							{#each groupedPaged.page as g (`${g.key}:${g.ts}`)}
 								{@const devG = deviceDisplay(g.client)}
 								<tr
 									class="groupRow"
@@ -1191,7 +1192,7 @@
 								{/if}
 							{/each}
 						{:else}
-							{#each dnsPaged.page as row, i (`${row[0]}:${row[1]}:${row[2]}:${i}`)}
+							{#each filteredPaged.page as row, i (`${row[0]}:${row[1]}:${row[2]}:${i}`)}
 								{@const clientRaw = String(row[3] ?? '')}
 								{@const devRow = deviceDisplay(clientRaw)}
 								<tr>
@@ -1230,7 +1231,7 @@
 			</div>
 			<TablePager
 				bind:page={dnsPage}
-				total={dnsPaged.total}
+				total={dnsPagerTotal}
 				pageSize={DNS_PAGE_SIZE}
 				onPageChange={() => scrollDnsTableTop()}
 			/>
